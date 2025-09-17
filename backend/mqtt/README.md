@@ -5,10 +5,26 @@ Sigue la guía de topics y estructura recomendada para comandos y eventos entre 
 
 ## Estructura de Carpetas
 
-- `config/mqtt-config.js`: Configuración del broker MQTT.
-- `mqtt/index.js`: Lógica de conexión, suscripción y recepción de mensajes MQTT.
-- `services/message-processor.js`: Procesamiento de los mensajes entrantes según el campo `event`.
-- `server.js`: Orquestador principal con Express.
+```
+/red-local-iot
+  /backend
+    /mqtt
+      index.js                 # Lógica de conexión y suscripción MQTT
+      /config
+        mqtt-config.js         # Configuración del broker MQTT
+        topics-config.js       # Topics de suscripción
+      /services
+        message-processor.js   # Procesamiento y validación de eventos entrantes
+        mqtt-client.js         # Cliente MQTT (conexión y publicación)
+      /utils
+        message-validators.js  # Validadores de formato y estructura de mensajes
+  /data
+    alarmas.json           # Datos de alarmas
+    registro_evento.json   # Historial de eventos
+    mac_to_id.json         # Cruce MAC <-> ID
+    db-repository.js       # Operaciones de lectura/escritura y mantenimiento de datos
+server.js                 # Inicialización principal y servidor Express
+```
 
 ## Topics MQTT
 
@@ -22,7 +38,7 @@ Donde `<MAC>` es la dirección MAC del ESP32.
 ## Procesamiento de Mensajes
 
 El backend se suscribe a `NODO/+/ACK` para recibir eventos de todos los nodos.  
-El procesamiento se realiza por el campo `event` del payload JSON recibido.
+El procesamiento se realiza por el campo `event` del payload JSON recibido, con validación y sanitización robusta.
 
 ## Ejemplo de Flujo
 
@@ -49,9 +65,20 @@ El procesamiento se realiza por el campo `event` del payload JSON recibido.
      }
      ```
 
+## Gestión y Persistencia de Datos
+
+- **alarmas.json:**  
+  Información principal de cada dispositivo, indexado por ID.
+- **registro_evento.json:**  
+  Historial de eventos por dispositivo, agrupados por ID.
+- **mac_to_id.json:**  
+  Tabla de cruce que relaciona la MAC del dispositivo con su ID interno.
+- **db-repository.js:**  
+  Métodos para lectura, escritura, actualización y limpieza de datos.
+
 ## Documentación Adicional
 
-Para detalles sobre los comandos, eventos y estructura de topics, consulta el archivo `docs/mqtt-topics.md`.
+Para detalles sobre los comandos, eventos y estructura de topics, consulta el archivo `backend-mqtt-commands-guide.md`.
 
 ## Requisitos
 
