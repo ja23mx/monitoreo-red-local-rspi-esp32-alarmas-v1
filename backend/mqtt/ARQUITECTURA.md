@@ -17,21 +17,40 @@ Este documento describe la arquitectura actual del sistema de backend MQTT para 
   - Se conecta al broker MQTT.
   - Suscribe a los eventos de todos los nodos.
   - Procesa los mensajes según el tipo de evento.
-  - Responde a los nodos con comandos y ACK.
+  - Valida y sanitiza los mensajes recibidos.
+  - Responde a los nodos con comandos y ACK, incluyendo detalles de error si la validación falla.
+  - Actualiza la información de última conexión y almacena eventos en archivos JSON.
+  - Permite borrar eventos antiguos por MAC o de todos los dispositivos.
   - Opcional: expone API REST o WebSocket para integración con otras aplicaciones.
+
+- **Archivos de datos (JSON):**
+  - `alarmas.json`: Información principal de cada dispositivo, indexado por ID.
+  - `registro_evento.json`: Historial de eventos por dispositivo, agrupados por ID.
+  - `mac_to_id.json`: Tabla de cruce que relaciona la MAC del dispositivo con su ID interno.
 
 ---
 
 ## Estructura de Carpetas
 
 ```
-/config
-    mqtt-config.js     # Configuración del broker MQTT
-/mqtt
-    index.js           # Lógica de conexión y suscripción MQTT
-/services
-    message-processor.js # Procesamiento de eventos entrantes
-server.js             # Inicialización principal y servidor Express
+/red-local-iot
+  /backend
+    /mqtt
+      index.js                 # Lógica de conexión y suscripción MQTT
+      /config
+        mqtt-config.js         # Configuración del broker MQTT
+        topics-config.js       # Topics de suscripcion
+      /services
+        message-processor.js   # Procesamiento y validación de eventos entrantes
+        mqtt-client.js         # Cliente MQTT (conexión y publicación)
+      /utils
+        message-validators.js  # Validadores de formato y estructura de mensajes
+/data
+    alarmas.json           # Datos de alarmas
+    registro_evento.json   # Historial de eventos
+    mac_to_id.json         # Cruce MAC <-> ID
+    db-repository.js       # Operaciones de lectura/escritura y mantenimiento de datos
+server.js                 # Inicialización principal y servidor Express
 ```
 
 ---
@@ -49,7 +68,7 @@ server.js             # Inicialización principal y servidor Express
 [2] Broker MQTT enruta el mensaje al backend suscrito a NODO/+/ACK
         |
         v
-[3] Backend recibe el mensaje, lo procesa según el campo "event"
+[3] Backend recibe el mensaje, lo valida y procesa según el campo "event"
         |
         v
 [4] Backend responde (si corresponde) al ESP32 por topic: NODO/<MAC>/CMD
@@ -82,7 +101,9 @@ server.js             # Inicialización principal y servidor Express
 
 ## Observaciones
 
-- El backend puede expandirse con lógica para monitoreo de nodos, alertas, integración con otros sistemas, etc.
+- El backend valida y sanitiza todos los mensajes antes de procesarlos.
+- La información de última conexión y eventos se actualiza y almacena en archivos JSON.
+- Se pueden borrar eventos antiguos por MAC o de todos los dispositivos, facilitando el mantenimiento.
 - La suscripción a `NODO/+/ACK` permite recibir eventos de todos los nodos sin necesidad de cambios adicionales.
 - La arquitectura es modular y fácilmente escalable.
 

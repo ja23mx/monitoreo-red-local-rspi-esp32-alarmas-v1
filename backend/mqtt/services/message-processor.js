@@ -2,80 +2,125 @@
 // Procesa los mensajes de MQTT recibidos en NODO/<MAC>/ACK según el campo "event" del payload
 
 const { DateTime } = require('luxon'); // Para manejo de fechas ISO 8601
+const validators = require('../utils/message-validators'); // Importa los validadores
+const db = require('../../../data/db-repository'); // Agrega esta línea al inicio si no está
 
-/**
- * Envía una respuesta ACK estándar al ESP32 en su topic CMD.
- */
-function sendAck({ mqttClient, mac, time, status = 'ok', extra = {} }) {
-  const topic = `NODO/${mac}/CMD`;
-  const payload = {
-    dsp: mac,
-    event: 'ack_ans',
-    time: time,
-    status: status,
-    ...extra
-  };
-  mqttClient.publish(topic, JSON.stringify(payload));
-}
 
 /**
  * Procesa el mensaje recibido en NODO/<MAC>/ACK.
  */
 function process(topic, payload, mqttClient) {
-  // Extraer MAC del topic: NODO/<MAC>/ACK
-  const match = topic.match(/^NODO\/([A-F0-9]{6})\/ACK$/);
-  const mac = match ? match[1] : payload.dsp || null;
-  const now = DateTime.utc().toISO(); // Timestamp actual ISO 8601
 
-  if (!mac) {
-    console.error('[Processor] No se pudo determinar MAC del mensaje:', topic, payload);
-    return;
-  }
+    if (!validators.TopicFormat(topic)) {
+        console.error('[Processor] Formato de topic inválido:', topic);
+        return;
+    }
 
-  switch (payload.event) {
-    case 'rst':
-      // Sincronización de tiempo en reset
-      if (payload.time === 'UNSYNC') {
-        sendAck({ mqttClient, mac, time: now });
-        // Aquí puedes actualizar estado del nodo, log, etc.
-      }
-      break;
+    // Extraer MAC del topic: NODO/<MAC>/ACK
+    const match = topic.match(/^NODO\/([A-F0-9]{6})\/ACK$/);
+    const mac = match ? match[1] : payload.dsp || null;
 
-    case 'button':
-      // Botón presionado
-      sendAck({ mqttClient, mac, time: now });
-      // Procesa el botón: payload.data.nmb-btn
-      break;
+    if (!validators.macFormat(mac)) {
+        console.error('[Processor] MAC inválida en payload:', payload.dsp);
+        return;
+    }
 
-    case 'hb':
-      // Heartbeat recibido
-      sendAck({ mqttClient, mac, time: now });
-      // Marca nodo como activo, actualiza timestamp último HB
-      break;
+    if (!mac) {
+        console.error('[Processor] No se pudo determinar MAC del mensaje:', topic, payload);
+        return;
+    }
 
-    case 'play_fin':
-      // Finalización de reproducción de audio
-      sendAck({ mqttClient, mac, time: now });
-      // Procesa resultado: payload.data.status, payload.data.audio
-      break;
 
-    case 'ack_ans':
-      // Respuesta a comando del servidor (usualmente loguear, actualizar estado)
-      // No se responde a este evento
-      break;
+    // Validación de formato y campos obligatorios
+    const errors = validators.searchErrors(payload);
 
-    default:
-      // Otro evento: loguear, procesar, responder si es necesario
-      console.log(`[Processor] Evento desconocido (${payload.event}) de nodo ${mac}:`, payload);
-      // Puedes responder con error si lo consideras
-      // sendAck({ mqttClient, mac, time: now, status: 'error', extra: { error_msg: 'Evento no soportado' } });
-      break;
-  }
+    if (errors.length > 0) {
+        console.error(`[Processor] Errores de validación para nodo ${mac}:`, errors);
+        // Opcional: responder con error al nodo
+        sendAck({
+            mqttClient,
+            mac,
+            status: 'error',
+            extra: { error_msg: errors.join('; ') }
+        });
+        return;
+    }
 
-  // Ejemplo de tolerancia de heartbeat:
-  // Aquí podrías actualizar un mapa de última actividad por MAC para monitoreo/alertas
+    // Sanitiza el payload antes de procesar
+    const cleanPayload = validators.sanitizePayload(payload);
+
+    switch (cleanPayload.event) {
+        case 'rst': // ***
+            // Sincronización de tiempo en reset
+            if (cleanPayload.time === 'UNSYNC') {
+                sendAck({ mqttClient, mac });
+                // Aquí puedes actualizar estado del nodo, log, etc.
+            }
+            break;
+
+        case 'button': // ***
+            // Botón presionado
+            sendAck({ mqttClient, mac });
+            // Procesa el botón: cleanPayload.data.nmb-btn
+            db.addEventoByMac(mac, {
+                time: getISO8601Timestamp(),
+                event: `btn${cleanPayload.data['nmb-btn']}`
+            });
+            break;
+
+        case 'hb': // ***
+            // Heartbeat recibido
+            sendAck({ mqttClient, mac });
+            // Marca nodo como activo, actualiza timestamp último HB
+            db.updateUltimaConexionByMac(mac, getISO8601Timestamp());
+            break;
+
+        case 'play_fin':
+            // Finalización de reproducción de audio
+            sendAck({ mqttClient, mac });
+            // Procesa resultado: cleanPayload.data.status, cleanPayload.data.audio
+            break;
+
+        case 'ack_ans':
+            // Respuesta a comando del servidor (usualmente loguear, actualizar estado)
+            // No se responde a este evento
+            break;
+
+        default:
+            // Otro evento: loguear, procesar, responder si es necesario
+            console.log(`[Processor] Evento desconocido (${cleanPayload.event}) de nodo ${mac}:`, cleanPayload);
+            break;
+    }
+
+    // Ejemplo de tolerancia de heartbeat:
+    // Aquí podrías actualizar un mapa de última actividad por MAC para monitoreo/alertas
 }
 
+/**
+ * Envía una respuesta ACK estándar al ESP32 en su topic CMD.
+*/
+function sendAck({ mqttClient, mac, status = 'ok', extra = {} }) {
+    const topic = `NODO/${mac}/CMD`;
+    const payload = {
+        dsp: mac,
+        event: 'ack_ans',
+        time: getISO8601Timestamp(),
+        status: status,
+        ...extra
+    };
+    mqttClient.publish(topic, JSON.stringify(payload));
+}
+
+/* 
+ * Devuelve el timestamp ISO 8601 actual sin milisegundos y con 'Z' al final.
+*/
+function getISO8601Timestamp() {
+    let now = DateTime.utc().startOf('second').toISO({ suppressMilliseconds: true, includeOffset: false });
+    if (!now.endsWith('Z')) now += 'Z';
+    return now;
+}
+
+
 module.exports = {
-  process
+    process
 };
