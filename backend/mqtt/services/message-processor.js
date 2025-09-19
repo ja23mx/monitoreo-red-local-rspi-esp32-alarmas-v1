@@ -4,7 +4,8 @@
 const { DateTime } = require('luxon'); // Para manejo de fechas ISO 8601
 const validators = require('../utils/message-validators'); // Importa los validadores
 const db = require('../../../data/db-repository'); // Agrega esta línea al inicio si no está
-
+const { webSocketManager } = require('../../websocket/index.js');
+const NotificationBroadcaster = require('../../websocket/services/notification-broadcaster'); // AGREGAR LÍNEA 5
 
 /**
  * Procesa el mensaje recibido en NODO/<MAC>/ACK.
@@ -12,7 +13,7 @@ const db = require('../../../data/db-repository'); // Agrega esta línea al inic
 function process(topic, payload, mqttClient) {
 
     if (!validators.TopicFormat(topic)) {
-        console.error('[Processor] Formato de topic inválido:', topic);
+        console.log('[Processor] Formato de topic inválido:', topic);
         return;
     }
 
@@ -21,18 +22,21 @@ function process(topic, payload, mqttClient) {
     const mac = match ? match[1] : payload.dsp || null;
 
     if (!validators.macFormat(mac)) {
-        console.error('[Processor] MAC inválida en payload:', payload.dsp);
+        console.log('[Processor] MAC inválida en payload:', payload.dsp);
         return;
     }
 
     if (!mac) {
-        console.error('[Processor] No se pudo determinar MAC del mensaje:', topic, payload);
+        console.log('[Processor] No se pudo determinar MAC del mensaje:', topic, payload);
         return;
     }
 
 
     // Validación de formato y campos obligatorios
-    const errors = validators.searchErrors(payload);
+    // DESHABILITADO POR AHORA, PARA EVITAR QUE EVALUE TIEMPO DE PAYLOAD   
+    //const errors = validators.searchErrors(payload);
+
+    const errors = [];
 
     if (errors.length > 0) {
         console.error(`[Processor] Errores de validación para nodo ${mac}:`, errors);
@@ -56,9 +60,12 @@ function process(topic, payload, mqttClient) {
                 sendAck({ mqttClient, mac });
                 // Aquí puedes actualizar estado del nodo, log, etc.
             }
+            if (webSocketManager && webSocketManager.notificationBroadcaster) {
+                webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
+            }
             break;
 
-        case 'button': // ***
+        case 'button': // *** revisado
             // Botón presionado
             sendAck({ mqttClient, mac });
             // Procesa el botón: cleanPayload.data.nmb-btn
@@ -66,13 +73,19 @@ function process(topic, payload, mqttClient) {
                 time: getISO8601Timestamp(),
                 event: `btn${cleanPayload.data['nmb-btn']}`
             });
+            if (webSocketManager && webSocketManager.notificationBroadcaster) {
+                webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
+            }
             break;
 
-        case 'hb': // ***
+        case 'hb': // *** revisado
             // Heartbeat recibido
             sendAck({ mqttClient, mac });
             // Marca nodo como activo, actualiza timestamp último HB
             db.updateUltimaConexionByMac(mac, getISO8601Timestamp());
+            if (webSocketManager && webSocketManager.notificationBroadcaster) {
+                webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
+            }
             break;
 
         case 'play_fin':
@@ -82,8 +95,10 @@ function process(topic, payload, mqttClient) {
             break;
 
         case 'ack_ans':
-            // Respuesta a comando del servidor (usualmente loguear, actualizar estado)
-            // No se responde a este evento
+            // Notificar al DeviceHandler que llegó un ACK para un comando
+            if (webSocketManager && webSocketManager.messageRouter && webSocketManager.messageRouter.deviceHandler) {
+                webSocketManager.messageRouter.deviceHandler.handleCommandAck(mac, cleanPayload);
+            }
             break;
 
         default:

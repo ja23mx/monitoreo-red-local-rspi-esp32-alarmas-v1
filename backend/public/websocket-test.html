@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test - Sistema de Alarmas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #fff3cd; color: #856404; }
+        
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .device-card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+        .device-card.online { border-left: 4px solid #28a745; }
+        .device-card.offline { border-left: 4px solid #dc3545; }
+        .device-card.unknown { border-left: 4px solid #6c757d; }
+        
+        .log-area {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>🔗 WebSocket Test - Sistema de Alarmas</h1>
+    
+    <!-- Status de Conexión -->
+    <div class="container">
+        <h2>Estado de Conexión</h2>
+        <div id="connectionStatus" class="status disconnected">Desconectado</div>
+        <div>
+            <button id="connectBtn" onclick="connect()">Conectar</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>Desconectar</button>
+            <button onclick="sendPing()" id="pingBtn" disabled>Enviar Ping</button>
+            <button onclick="requestSystemInfo()" id="systemInfoBtn" disabled>Info del Sistema</button>
+        </div>
+    </div>
+
+    <!-- Información del Sistema -->
+    <div class="container">
+        <h2>Información del Sistema</h2>
+        <div id="systemInfo">
+            <p>Conecte para obtener información del sistema...</p>
+        </div>
+    </div>
+
+    <!-- Dispositivos -->
+    <div class="container">
+        <h2>Dispositivos ESP32</h2>
+        <div id="deviceCount">Dispositivos: 0</div>
+        <div id="devicesContainer" class="device-grid">
+            <p>No hay dispositivos para mostrar</p>
+        </div>
+    </div>
+
+    <!-- Log de Mensajes -->
+    <div class="container">
+        <h2>Log de Mensajes</h2>
+        <button onclick="clearLog()">Limpiar Log</button>
+        <div id="messageLog" class="log-area"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 3;
+
+        // Elementos DOM
+        const statusEl = document.getElementById('connectionStatus');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        const systemInfoBtn = document.getElementById('systemInfoBtn');
+        const logEl = document.getElementById('messageLog');
+        const systemInfoEl = document.getElementById('systemInfo');
+        const devicesContainer = document.getElementById('devicesContainer');
+        const deviceCountEl = document.getElementById('deviceCount');
+
+        function connect() {
+            if (isConnected) return;
+
+            updateStatus('connecting', 'Conectando...');
+            log('🔄 Intentando conectar al WebSocket...');
+
+            ws = new WebSocket(`ws://${window.location.host}`);
+
+            ws.onopen = function(event) {
+                isConnected = true;
+                reconnectAttempts = 0;
+                updateStatus('connected', 'Conectado');
+                updateButtons();
+                log('✅ Conexión WebSocket establecida');
+                
+                // Enviar handshake automáticamente
+                setTimeout(sendHandshake, 500);
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const message = JSON.parse(event.data);
+                    handleMessage(message);
+                } catch (error) {
+                    log(`❌ Error parseando mensaje: ${error.message}`);
+                }
+            };
+
+            ws.onclose = function(event) {
+                isConnected = false;
+                updateStatus('disconnected', `Desconectado (Código: ${event.code})`);
+                updateButtons();
+                log(`🔌 Conexión cerrada: ${event.code} - ${event.reason || 'Sin razón'}`);
+                
+                // Intentar reconectar automáticamente
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    log(`🔄 Reintentando conexión en 3 segundos (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                    setTimeout(connect, 3000);
+                }
+            };
+
+            ws.onerror = function(error) {
+                log(`❌ Error WebSocket: ${error.message || 'Error desconocido'}`);
+            };
+        }
+
+        function disconnect() {
+            if (ws && isConnected) {
+                ws.close(1000, 'Desconexión manual');
+                log('🔌 Desconectando manualmente...');
+            }
+        }
+
+        function sendHandshake() {
+            const handshakeMessage = {
+                type: 'handshake',
+                timestamp: new Date().toISOString(),
+                clientId: `web-client-${Date.now()}`,
+                userAgent: navigator.userAgent,
+                data: {
+                    version: '1.0'
+                }
+            };
+
+            sendMessage(handshakeMessage);
+            log('🤝 Handshake enviado');
+        }
+
+        function sendPing() {
+            const pingMessage = {
+                type: 'ping',
+                timestamp: new Date().toISOString()
+            };
+            sendMessage(pingMessage);
+            log('🏓 Ping enviado');
+        }
+
+        function requestSystemInfo() {
+            const systemInfoMessage = {
+                type: 'system_info',
+                timestamp: new Date().toISOString()
+            };
+            sendMessage(systemInfoMessage);
+            log('ℹ️ Solicitando información del sistema');
+        }
+
+        function sendMessage(message) {
+            if (ws && isConnected) {
+                ws.send(JSON.stringify(message));
+            } else {
+                log('❌ No se puede enviar mensaje: no hay conexión');
+            }
+        }
+
+        function handleMessage(message) {
+            log(`📨 Mensaje recibido: ${message.type}`);
+            
+            switch (message.type) {
+                case 'welcome':
+                    log(`🎉 Mensaje de bienvenida: ${message.data.message}`);
+                    break;
+                    
+                case 'handshake':
+                    if (message.success) {
+                        log('✅ Handshake completado exitosamente');
+                        displaySystemInfo(message.data);
+                        displayDevices(message.data.devices || []);
+                    } else {
+                        log(`❌ Error en handshake: ${message.error?.message || 'Error desconocido'}`);
+                    }
+                    break;
+                    
+                case 'pong':
+                    const latency = Date.now() - new Date(message.originalTimestamp || message.timestamp).getTime();
+                    log(`🏓 Pong recibido (Latencia: ${latency}ms)`);
+                    break;
+                    
+                case 'system_info':
+                    if (message.success) {
+                        log('ℹ️ Información del sistema recibida');
+                        displaySystemInfo(message.data);
+                    }
+                    break;
+                    
+                case 'notification':
+                    log(`🔔 Notificación: ${message.event} - ${JSON.stringify(message.data)}`);
+                    handleNotification(message);
+                    break;
+                    
+                case 'error':
+                    log(`❌ Error del servidor: [${message.error.code}] ${message.error.message}`);
+                    break;
+                    
+                default:
+                    log(`❓ Tipo de mensaje desconocido: ${message.type}`);
+            }
+            
+            // Mostrar mensaje completo en el log (truncado)
+            const truncated = JSON.stringify(message, null, 2).substring(0, 200);
+            log(`📋 Datos: ${truncated}${JSON.stringify(message).length > 200 ? '...' : ''}`);
+        }
+
+        function displaySystemInfo(data) {
+            systemInfoEl.innerHTML = `
+                <div><strong>Servidor:</strong> ${data.serverStatus || 'Activo'}</div>
+                <div><strong>Versión:</strong> ${data.serverVersion || 'N/A'}</div>
+                <div><strong>Tiempo del Servidor:</strong> ${new Date(data.serverTime).toLocaleString()}</div>
+                <div><strong>Clientes Conectados:</strong> ${data.connectedClients || 0}</div>
+                <div><strong>MQTT:</strong> ${data.mqttStatus || 'Desconocido'}</div>
+                <div><strong>Dispositivos Totales:</strong> ${data.totalDevices || 0}</div>
+                <div><strong>Dispositivos Online:</strong> ${data.onlineDevices || 0}</div>
+            `;
+        }
+
+        function displayDevices(devices) {
+            deviceCountEl.textContent = `Dispositivos: ${devices.length}`;
+            
+            if (devices.length === 0) {
+                devicesContainer.innerHTML = '<p>No hay dispositivos registrados</p>';
+                return;
+            }
+
+            devicesContainer.innerHTML = devices.map(device => `
+                <div class="device-card ${device.status || 'unknown'}">
+                    <h4>${device.name || device.id}</h4>
+                    <div><strong>ID:</strong> ${device.id}</div>
+                    <div><strong>MAC:</strong> ${device.mac}</div>
+                    <div><strong>Estado:</strong> <span style="color: ${getStatusColor(device.status)}">${device.status || 'Desconocido'}</span></div>
+                    <div><strong>Última Vez Visto:</strong> ${device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Nunca'}</div>
+                    <div><strong>Alarma Activa:</strong> ${device.alarmActive ? '🚨 SÍ' : '✅ NO'}</div>
+                    ${device.location ? `<div><strong>Ubicación:</strong> ${device.location}</div>` : ''}
+                    ${device.totalAlarms ? `<div><strong>Total Alarmas:</strong> ${device.totalAlarms}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function handleNotification(message) {
+            // Aquí se pueden agregar actualizaciones en tiempo real
+            // Por ejemplo, actualizar el estado de un dispositivo específico
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'online': return '#28a745';
+                case 'offline': return '#dc3545';
+                default: return '#6c757d';
+            }
+        }
+
+        function updateStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+        }
+
+        function updateButtons() {
+            connectBtn.disabled = isConnected;
+            disconnectBtn.disabled = !isConnected;
+            pingBtn.disabled = !isConnected;
+            systemInfoBtn.disabled = !isConnected;
+        }
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+        }
+
+        // Auto-conectar al cargar la página
+        window.onload = function() {
+            updateButtons();
+            log('🌐 Página cargada. Listo para conectar.');
+        };
+    </script>
+</body>
+</html>
