@@ -700,6 +700,32 @@
             window.sendEmergency = sendEmergency;
 
         })();
+
+        // --- INICIO: CÓDIGO WEBSOCKET ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // La URL del WebSocket apunta al mismo host y puerto que el servidor HTTP.
+            // Esto construye la URL del WebSocket dinámicamente desde la URL de la página.
+            const ws = new WebSocket(`ws://${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log('[WebSocket] Conexión establecida con el servidor.');
+                // Enviar un mensaje de prueba al servidor.
+                ws.send('¡Hola, servidor! Soy el frontend.');
+            };
+
+            ws.onmessage = (event) => {
+                console.log(`[WebSocket] Mensaje recibido del servidor: ${event.data}`);
+            };
+
+            ws.onclose = () => {
+                console.log('[WebSocket] Conexión cerrada.');
+            };
+
+            ws.onerror = (error) => {
+                console.error('[WebSocket] Error en la conexión:', error);
+            };
+        });
+        // --- FIN: CÓDIGO WEBSOCKET ---
     </script>
 </body>
 

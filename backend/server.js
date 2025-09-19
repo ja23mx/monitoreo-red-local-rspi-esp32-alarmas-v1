@@ -1,14 +1,16 @@
-// backend/server.js
-// Archivo principal del backend: solo levanta Express y activa la lógica MQTT mediante mqtt/index.js
 
 const express = require('express');
+const http = require('http'); 
 const path = require('path');
 
-// Importa y ejecuta la lógica MQTT (el archivo index.js dentro de la carpeta mqtt)
 require('./mqtt/index.js');
+const { initializeWebSocket } = require('./websocket/index.js'); 
 
 const app = express();
 const PORT = 3000;
+
+const server = http.createServer(app);
+initializeWebSocket(server);
 
 // Middleware para servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
@@ -19,6 +21,6 @@ app.get('/', (req, res) => {
 });
 
 // Iniciar el servidor Express
-app.listen(PORT, () => {
-  console.log(`Servidor Express corriendo en http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Servidor HTTP y WebSocket en ejecución en http://localhost:${PORT}`);
 });

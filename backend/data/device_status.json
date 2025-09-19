@@ -1,0 +1,26 @@
+[
+    {
+        "id": "ESP32_001",
+        "mac": "AA:BB:CC:DD:EE:01",
+        "name": "Poste Entrada",
+        "status": "online",
+        "lastSeen": "2025-09-18T12:00:00.000Z",
+        "location": "Entrada Principal"
+    },
+    {
+        "id": "ESP32_002",
+        "mac": "AA:BB:CC:DD:EE:02",
+        "name": "Poste Parque",
+        "status": "online",
+        "lastSeen": "2025-09-18T11:58:00.000Z",
+        "location": "Parque Central"
+    },
+    {
+        "id": "ESP32_003",
+        "mac": "AA:BB:CC:DD:EE:03",
+        "name": "Poste Salida",
+        "status": "offline",
+        "lastSeen": "2025-09-18T09:15:00.000Z",
+        "location": "Salida Trasera"
+    }
+]

@@ -22,7 +22,7 @@ Todos los mensajes posteriores deben incluir timestamps correctos.
 - **ESP32 a Servidor (Eventos / Respuestas):**  
   `NODO/<MAC>/ACK`
 
-Donde `<MAC>` es la dirección MAC de 6 dígitos hexadecimales en mayúsculas del ESP32 (ejemplo: EA8914).
+Donde `<MAC>` es la dirección MAC de 6 dígitos hexadecimales en mayúsculas del ESP32 (ejemplo: 77FF44).
 
 ---
 
@@ -39,19 +39,19 @@ Todos los mensajes incluyen los siguientes campos obligatorios:
 
 ## Comandos y Ejemplos
 
-### 1. GET INFO
+### 1. GET INFO - REVISADO
 
 **Descripción:**  
 El servidor solicita información de estado y red al ESP32.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "getinfo",
   "time": "2025-09-17T01:09:03Z"
 }
@@ -59,14 +59,14 @@ El servidor solicita información de estado y red al ESP32.
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
-  "time": "2025-09-17T01:09:04Z",
+  "time": "2025-09-19T07:40:01Z",
   "status": "ok",
   "data": {
     "firmware": "1.0.0",
@@ -92,12 +92,12 @@ El ESP32 notifica al backend un reinicio. El backend responde con el timestamp a
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "rst",
   "time": "UNSYNC"
 }
@@ -105,12 +105,12 @@ El ESP32 notifica al backend un reinicio. El backend responde con el timestamp a
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
   "time": "2025-09-17T01:10:01Z",
   "status": "ok"
@@ -119,19 +119,19 @@ El ESP32 notifica al backend un reinicio. El backend responde con el timestamp a
 
 ---
 
-### 3. BUTTON
+### 3. BUTTON - REVISADO
 
 **Descripción:**  
 El ESP32 notifica que se ha presionado un botón.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "button",
   "time": "2025-09-17T01:10:10Z",
   "data": {
@@ -142,12 +142,12 @@ El ESP32 notifica que se ha presionado un botón.
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
   "time": "2025-09-17T01:10:11Z",
   "status": "ok"
@@ -156,19 +156,19 @@ El ESP32 notifica que se ha presionado un botón.
 
 ---
 
-### 4. HEARTBEAT
+### 4. HEARTBEAT - REVISADO
 
 **Descripción:**  
 El ESP32 envía un evento periódico para indicar que sigue activo.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "hb",
   "time": "2025-09-17T01:10:20Z"
 }
@@ -176,12 +176,12 @@ El ESP32 envía un evento periódico para indicar que sigue activo.
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
   "time": "2025-09-17T01:10:21Z",
   "status": "ok"
@@ -190,39 +190,42 @@ El ESP32 envía un evento periódico para indicar que sigue activo.
 
 ---
 
-### 5. PLAY TRACK
+### 5. PLAY TRACK - REVISADO
 
 **Descripción:**  
 El servidor solicita al ESP32 reproducir una pista de audio.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "play_track",
   "time": "2025-09-17T01:10:30Z",
-  "data": {
-    "track": 25
-  }
+  "track": 25
 }
 ```
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
-  "time": "2025-09-17T01:10:31Z",
-  "status": "ok"
+  "time": "2025-09-19T07:10:05Z",
+  "status": "ok",
+  "data": {
+    "cmd": "play_track",
+    "result": "done"
+  }
 }
+
 ```
 
 ---
@@ -234,12 +237,12 @@ El ESP32 notifica que la reproducción de audio terminó.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "play_fin",
   "time": "2025-09-17T01:10:40Z",
   "data": {
@@ -251,12 +254,12 @@ El ESP32 notifica que la reproducción de audio terminó.
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
   "time": "2025-09-17T01:10:41Z",
   "status": "ok"
@@ -265,19 +268,19 @@ El ESP32 notifica que la reproducción de audio terminó.
 
 ---
 
-### 7. PING
+### 7. PING - REVISADO
 
 **Descripción:**  
-El servidor verifica la conectividad con el ESP32.
+El servidor verifica la conectividad con el ESP32. Hay una espera de 10 segundos para responder.
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ping",
   "time": "2025-09-17T01:10:50Z"
 }
@@ -285,15 +288,19 @@ El servidor verifica la conectividad con el ESP32.
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
-  "time": "2025-09-17T01:10:51Z",
-  "status": "ok"
+  "time": "2025-09-19T06:19:45Z",
+  "status": "ok",
+  "data": {
+    "cmd": "ping",
+    "result": "pong"
+  }
 }
 ```
 
@@ -308,12 +315,12 @@ Se usa el evento `"reinicio_srv"` para evitar confusión con el evento `"rst"` o
 
 **Solicitud**  
 **Topic:**  
-`NODO/EA8914/CMD`
+`NODO/77FF44/CMD`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "reinicio_srv",
   "time": "2025-09-17T01:15:00Z"
 }
@@ -321,17 +328,103 @@ Se usa el evento `"reinicio_srv"` para evitar confusión con el evento `"rst"` o
 
 **Respuesta**  
 **Topic:**  
-`NODO/EA8914/ACK`
+`NODO/77FF44/ACK`
 
 **Payload:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
-  "time": "2025-09-17T01:15:01Z",
-  "status": "ok"
+  "time": "2025-09-19T08:00:01Z",
+  "status": "ok",
+  "data": {
+    "cmd": "reinicio_srv",
+    "result": "rebooting"
+  }
 }
 ```
+
+### 9. STOP_AUDIO
+
+**Descripción:**  
+El servidor solicita al ESP32 detener la reproducción de audio actual.
+
+**Solicitud**  
+**Topic:**  
+`NODO/77FF44/CMD`
+
+**Payload:**
+```json
+{
+  "dsp": "77FF44",
+  "event": "stop_audio",
+  "time": "2025-09-19T08:15:00Z"
+}
+```
+
+**Respuesta**  
+**Topic:**  
+`NODO/77FF44/ACK`
+
+**Payload:**
+```json
+{
+  "dsp": "77FF44",
+  "event": "ack_ans",
+  "time": "2025-09-19T08:15:01Z",
+  "status": "ok",
+  "data": {
+    "cmd": "stop_audio",
+    "result": "stopped"
+  }
+}
+```
+
+---
+
+### 10. SET_VOLUME
+
+**Descripción:**  
+El servidor solicita al ESP32 ajustar el volumen de audio.
+
+**Solicitud**  
+**Topic:**  
+`NODO/77FF44/CMD`
+
+**Payload:**
+```json
+{
+  "dsp": "77FF44",
+  "event": "set_volume",
+  "time": "2025-09-19T08:20:00Z",
+  "data": {
+    "volume": 75
+  }
+}
+```
+
+**Respuesta**  
+**Topic:**  
+`NODO/77FF44/ACK`
+
+**Payload:**
+```json
+{
+  "dsp": "77FF44",
+  "event": "ack_ans",
+  "time": "2025-09-19T08:20:01Z",
+  "status": "ok",
+  "data": {
+    "cmd": "set_volume",
+    "result": "volume_set",
+    "volume": 75
+  }
+}
+```
+
+---
+
+// ...existing code... (continúa con Manejo de Errores, etc.)
 
 ---
 
@@ -340,7 +433,7 @@ Se usa el evento `"reinicio_srv"` para evitar confusión con el evento `"rst"` o
 **En caso de error, incluye el campo `error_msg` en la respuesta:**
 ```json
 {
-  "dsp": "EA8914",
+  "dsp": "77FF44",
   "event": "ack_ans",
   "time": "2025-09-17T01:12:01Z",
   "status": "error",
