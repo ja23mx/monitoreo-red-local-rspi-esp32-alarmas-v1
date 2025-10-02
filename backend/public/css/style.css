@@ -1,0 +1,54 @@
+ :root {
+     --unam-blue: #002B7A;
+     --accent: #D59F0F;
+     --bg-dark: #1E3A5F;
+     --header-blue: #3B78D1;
+     --panel-bg: #F4F7FB;
+     --row-bg: #FFFFFF;
+     --text-dark: #0B2447;
+     --subtext: #7F9FC9;
+     --icon-box: #00AEEF;
+     --online: #22C55E;
+     --offline: #FF4D4F;
+     --connecting: #E3E843;
+     --radius-sm: 5px;
+     --row-height: 45px;
+     --container-w: 1200px;
+ }
+
+ html,
+ body {
+     height: 100%;
+     margin: 0;
+     font-family: "Roboto", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+     background: var(--bg-dark);
+     color: #fff;
+     -webkit-font-smoothing: antialiased;
+     -moz-osx-font-smoothing: grayscale;
+ }
+
+ .main-container {
+     height: 100vh;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+ }
+
+
+ /* FOOTER SECTION - 5% */
+ .footer-section {
+     flex: 0 0 5%;
+     width: 100%;
+     background: rgba(11, 36, 71, 0.9);
+     border-top: 1px solid rgba(255, 255, 255, 0.1);
+     display: flex;
+     align-items: center;
+     justify-content: center;
+ }
+
+ .footer-content {
+     color: var(--subtext);
+     font-size: 14px;
+     font-weight: 400;
+     text-align: center;
+ }

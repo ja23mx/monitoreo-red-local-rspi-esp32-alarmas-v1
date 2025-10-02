@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>index-2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Roboto via Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="./css/style.css" />
+    <link rel="stylesheet" href="./css/header-bar-index.css" />
+    <link rel="stylesheet" href="./css/container-alarma-index.css" />
+</head>
+
+<body>
+    <div class="main-container">
+        <!-- Header Section -->
+        <header class="header-section" role="banner">
+            <div class="container-header">
+                <div class="header-card" role="group" aria-label="Encabezado">
+                    <div class="header">
+                        <div class="title">Monitoreo de Botones de Pánico</div>
+
+                        <div class="header-right">
+                            <div class="icons-section">
+                                <div class="icon-circle calendar-icon">
+                                    <i class="fa-solid fa-clock"></i>
+                                </div>
+
+                                <div id="websocketIcon" class="icon-circle websocket-icon disconnected">
+                                    <i class="fa-solid fa-globe"></i>
+                                </div>
+                            </div>
+
+                            <div id="clock" class="time-box" aria-live="polite">--:-- --</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Section (Alarmas) -->
+        <main class="main-section">
+            <div class="container-alarms">
+                <div class="alarms-card">
+                    <div class="alarms-title-row">
+                        <h2 class="alarms-title">
+                            Online
+                            <span class="status-dot online"></span>
+                        </h2>
+                        <div class="alarms-count">Dispositivos Online: 2/3</div>
+                    </div>
+                    <div id="alarmsDevicesGrid" class="alarms-device-grid">
+                        <!-- Tarjeta ONLINE -->
+                        <div class="alarm-device-card online">
+                            <div class="alarm-device-status"></div>
+                            <div class="alarm-device-content">
+                                <div class="alarm-device-title">Poste Entrada</div>
+                                <div class="alarm-device-row">
+                                    <i class="fas fa-tag"></i> <span>ID: ESP32_001</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-link"></i> <span class="online-text">ONLINE</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> <span>Alarma: OFF</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa fa-map-marker"></i> <span>Entrada Principal</span>
+                                </div>
+                                <!-- Acciones centradas en dos filas -->
+                                <div class="alarm-device-actions">
+                                    <div class="alarm-action-row">
+                                        <i class="fas fa-satellite-dish"></i>
+                                        <span class="action-label">Probar Conexión</span>
+                                    </div>
+                                    <div class="alarm-action-row">
+                                        <i class="fa-solid fa-bullhorn"></i>
+                                        <span class="action-label">Enviar Aviso</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Tarjeta OFFLINE -->
+                        <div class="alarm-device-card offline">
+                            <div class="alarm-device-status"></div>
+                            <div class="alarm-device-content">
+                                <div class="alarm-device-title">Poste Salida</div>
+                                <div class="alarm-device-row">
+                                    <i class="fas fa-tag"></i> <span>ID: ESP32_002</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-link"></i> <span class="offline-text">OFFLINE</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> <span>Alarma: OFF</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa fa-map-marker"></i> <span>Salida Trasera</span>
+                                </div>
+                                <!-- Acciones centradas en dos filas -->
+                                <div class="alarm-device-actions">
+                                    <div class="alarm-action-row">
+                                        <i class="fas fa-satellite-dish"></i>
+                                        <span class="action-label">Probar Conexión</span>
+                                    </div>
+                                    <div class="alarm-action-row">
+                                        <i class="fa-solid fa-bullhorn"></i>
+                                        <span class="action-label">Enviar Aviso</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Tarjeta ACTIVADA -->
+                        <div class="alarm-device-card activated">
+                            <div class="alarm-device-status"></div>
+                            <div class="alarm-device-content">
+                                <div class="alarm-device-title">Poste Parque</div>
+                                <div class="alarm-device-row">
+                                    <i class="fas fa-tag"></i> <span>ID: ESP32_003</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-link"></i> <span class="online-text">ONLINE</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> <span>Alarma: ON</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa fa-map-marker"></i> <span>Parque Central</span>
+                                </div>
+                                <!-- Acciones centradas en dos filas -->
+                                <div class="alarm-device-actions">
+                                    <div class="alarm-action-row">
+                                        <i class="fas fa-satellite-dish"></i>
+                                        <span class="action-label">Probar Conexión</span>
+                                    </div>
+                                    <div class="alarm-action-row">
+                                        <i class="fa-solid fa-power-off"></i>
+                                        <span class="action-label">Desactivar</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Tarjeta SIN SERVIDOR -->
+                        <div class="alarm-device-card noserver">
+                            <div class="alarm-device-status"></div>
+                            <div class="alarm-device-content">
+                                <div class="alarm-device-title">Poste Parque</div>
+                                <div class="alarm-device-row">
+                                    <i class="fas fa-tag"></i> <span>ID: ESP32_003</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-link"></i> <span class="online-text">ONLINE</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> <span>Alarma: ON</span>
+                                </div>
+                                <div class="alarm-device-row">
+                                    <i class="fa fa-map-marker"></i> <span>Parque Central</span>
+                                </div>
+                                <!-- Acciones centradas en dos filas -->
+                                <div class="alarm-device-actions">
+                                    <div class="alarm-action-row">
+                                        <i class="fas fa-satellite-dish"></i>
+                                        <span class="action-label">Probar Conexión</span>
+                                    </div>
+                                    <div class="alarm-action-row">
+                                        <i class="fa-solid fa-bullhorn"></i>
+                                        <span class="action-label">Enviar Aviso</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Section -->
+        <footer class="footer-section">
+            <div class="footer-content">
+                NT 2025 - SRA 1.0
+            </div>
+        </footer>
+    </div>
+
+    <script src="./js/app.js"> </script>
+</body>
+
+</html>

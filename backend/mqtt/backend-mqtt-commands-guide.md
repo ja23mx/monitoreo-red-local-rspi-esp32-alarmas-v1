@@ -111,7 +111,7 @@ El ESP32 notifica al backend un reinicio. El backend responde con el timestamp a
 ```json
 {
   "dsp": "77FF44",
-  "event": "ack_ans",
+  "event": "ack_ans_rst",
   "time": "2025-09-17T01:10:01Z",
   "status": "ok"
 }
@@ -148,7 +148,7 @@ El ESP32 notifica que se ha presionado un botón.
 ```json
 {
   "dsp": "77FF44",
-  "event": "ack_ans",
+  "event": "ack_ans_button",
   "time": "2025-09-17T01:10:11Z",
   "status": "ok"
 }
@@ -182,7 +182,7 @@ El ESP32 envía un evento periódico para indicar que sigue activo.
 ```json
 {
   "dsp": "77FF44",
-  "event": "ack_ans",
+  "event": "ack_ans_hb",
   "time": "2025-09-17T01:10:21Z",
   "status": "ok"
 }
@@ -260,7 +260,7 @@ El ESP32 notifica que la reproducción de audio terminó.
 ```json
 {
   "dsp": "77FF44",
-  "event": "ack_ans",
+  "event": "ack_ans_play_fin",
   "time": "2025-09-17T01:10:41Z",
   "status": "ok"
 }
