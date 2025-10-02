@@ -217,7 +217,7 @@ class DeviceHandler {
             // Topic MQTT: NODO/{MAC}/CMD
             const topic = `NODO/${deviceMac}/CMD`;
             
-            console.log(`[DeviceHandler] Enviando comando MQTT: ${topic} →`, mqttPayload);
+            console.log(`[DeviceHandler] Enviando comando MQTT: ${topic} →`, `mqttPayload`);
 
             // Publicar en MQTT
             this.mqttClient.publish(topic, JSON.stringify(mqttPayload));

@@ -57,7 +57,7 @@ function process(topic, payload, mqttClient) {
         case 'rst': // ***
             // Sincronización de tiempo en reset
             if (cleanPayload.time === 'UNSYNC') {
-                sendAck({ mqttClient, mac });
+                sendAck({ mqttClient, mac, cmd: 'rst' });
                 // Aquí puedes actualizar estado del nodo, log, etc.
             }
             if (webSocketManager && webSocketManager.notificationBroadcaster) {
@@ -67,7 +67,7 @@ function process(topic, payload, mqttClient) {
 
         case 'button': // *** revisado
             // Botón presionado
-            sendAck({ mqttClient, mac });
+            sendAck({ mqttClient, mac, cmd: 'button' });
             // Procesa el botón: cleanPayload.data.nmb-btn
             db.addEventoByMac(mac, {
                 time: getISO8601Timestamp(),
@@ -80,7 +80,7 @@ function process(topic, payload, mqttClient) {
 
         case 'hb': // *** revisado
             // Heartbeat recibido
-            sendAck({ mqttClient, mac });
+            sendAck({ mqttClient, mac, cmd: 'hb' });
             // Marca nodo como activo, actualiza timestamp último HB
             db.updateUltimaConexionByMac(mac, getISO8601Timestamp());
             if (webSocketManager && webSocketManager.notificationBroadcaster) {
@@ -90,7 +90,7 @@ function process(topic, payload, mqttClient) {
 
         case 'play_fin':
             // Finalización de reproducción de audio
-            sendAck({ mqttClient, mac });
+            sendAck({ mqttClient, mac, cmd: 'play_fin' });
             // Procesa resultado: cleanPayload.data.status, cleanPayload.data.audio
             break;
 
@@ -114,11 +114,11 @@ function process(topic, payload, mqttClient) {
 /**
  * Envía una respuesta ACK estándar al ESP32 en su topic CMD.
 */
-function sendAck({ mqttClient, mac, status = 'ok', extra = {} }) {
+function sendAck({ mqttClient, mac, cmd, status = 'ok', extra = {} }) {
     const topic = `NODO/${mac}/CMD`;
     const payload = {
         dsp: mac,
-        event: 'ack_ans',
+        event: `ack_ans_${cmd || 'unknown'}`,
         time: getISO8601Timestamp(),
         status: status,
         ...extra
