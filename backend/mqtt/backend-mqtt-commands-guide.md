@@ -52,7 +52,7 @@ El servidor solicita información de estado y red al ESP32.
 ```json
 {
   "dsp": "77FF44",
-  "event": "getinfo",
+  "event": "status",        
   "time": "2025-09-17T01:09:03Z"
 }
 ```
