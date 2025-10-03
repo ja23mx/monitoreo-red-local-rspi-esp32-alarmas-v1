@@ -124,7 +124,7 @@ Todos los mensajes WebSocket deben seguir esta estructura básica:
 ### Eventos Soportados
 - `button_pressed` - Botón de pánico presionado
 - `heartbeat` - Latido del dispositivo
-- `reset` - Dispositivo reiniciado
+- `device_reset` - Dispositivo reiniciado
 - `alarm_activated` - Alarma activada
 - `alarm_deactivated` - Alarma desactivada
 - `device_online` - Dispositivo conectado
@@ -132,7 +132,7 @@ Todos los mensajes WebSocket deben seguir esta estructura básica:
 
 ### Comandos de Dispositivo Soportados
 - `ping` - Verificar conectividad
-- `getinfo` - Obtener información del dispositivo
+- `get_status` - Obtener información del dispositivo
 - `play_track` - Reproducir audio
 - `set_config` - Configurar parámetros
 
@@ -181,5 +181,39 @@ Todos los mensajes WebSocket deben seguir esta estructura básica:
 
 ---
 
-**Versión:** 1.0  
+### Ejemplo de Device Reset
+```json
+{
+  "type": "notification",
+  "timestamp": "2025-10-02T10:32:00.000Z",
+  "event": "device_reset",
+  "data": {
+    "deviceId": "ESP32_001",
+    "mac": "EA8914",
+    "deviceName": "Poste Entrada",
+    "version": "1.2.3",
+    "reason": "power_on_reset"
+  }
+}
+```
+
+### Ejemplo de Play Finished
+```json
+{
+  "type": "notification",
+  "timestamp": "2025-10-02T10:32:00.000Z",
+  "event": "play_finished",
+  "data": {
+    "deviceId": "ESP32_001",
+    "mac": "EA8914", 
+    "deviceName": "Poste Entrada",
+    "track": 1,
+    "ntpStatus": "OK"
+  }
+}
+```
+
+---
+
+**Versión:** 0.1  
 **Última actualización:** 18 de septiembre, 2025

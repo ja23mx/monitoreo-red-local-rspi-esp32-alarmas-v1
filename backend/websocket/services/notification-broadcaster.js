@@ -6,8 +6,8 @@
 const WEBSOCKET_CONFIG = require('../config/websocket-config');
 const ResponseBuilder = require('../utils/response-builder');
 const clientManager = require('./client-manager');
-const fs = require('fs').promises; 
-const path = require('path'); 
+const fs = require('fs').promises;
+const path = require('path');
 
 class NotificationBroadcaster {
     constructor() {
@@ -17,8 +17,8 @@ class NotificationBroadcaster {
             failedBroadcasts: 0,
             eventsByType: {}
         };
-        this.macToIdCache = null; 
-        this.dataPath = path.join(__dirname, '../../data'); 
+        this.macToIdCache = null;
+        this.dataPath = path.join(__dirname, '../../data');
     }
 
     /**
@@ -30,15 +30,15 @@ class NotificationBroadcaster {
     async processMqttEvent(topic, message, deviceMac) { // CAMBIAR deviceId por deviceMac
         try {
             this.broadcastStats.totalEvents++;
-            
+
             console.log(`[NotificationBroadcaster] Procesando evento MQTT: ${topic} desde MAC ${deviceMac}`);
 
             // Traducir MAC a ID limpio
-            const deviceId = await this.translateMacToId(deviceMac); 
-            
+            const deviceId = await this.translateMacToId(deviceMac);
+
             // Extraer tipo de evento del mensaje (no del topic)
-            const eventType = this.extractEventFromMessage(message); 
-            
+            const eventType = this.extractEventFromMessage(message);
+
             if (!eventType) {
                 console.warn(`[NotificationBroadcaster] Tipo de evento desconocido en mensaje:`, message);
                 return;
@@ -46,19 +46,22 @@ class NotificationBroadcaster {
 
             // Obtener información del dispositivo usando ID limpio
             const deviceInfo = await this.getDeviceInfo(deviceId); // Usar ID traducido
-            
+
             // Procesar según el tipo de evento
             let notification = null;
 
             switch (eventType) {
-                case 'button': 
+                case 'button':
                     notification = this.createButtonPressedNotification(deviceInfo, message);
                     break;
-                case 'hb': 
+                case 'hb':
                     notification = this.createHeartbeatNotification(deviceInfo, message);
                     break;
-                case 'rst': 
+                case 'rst':
                     notification = this.createDeviceResetNotification(deviceInfo, message);
+                    break;
+                case 'play_fin':
+                    notification = this.createPlayFinishedNotification(deviceInfo, message);
                     break;
                 default:
                     console.warn(`[NotificationBroadcaster] Evento no manejado: ${eventType}`);
@@ -90,7 +93,7 @@ class NotificationBroadcaster {
 
             // Buscar traducción
             const deviceId = this.macToIdCache[mac];
-            
+
             if (deviceId) {
                 return deviceId;
             }
@@ -125,7 +128,7 @@ class NotificationBroadcaster {
      * @param {Object} message - Mensaje MQTT parseado
      * @returns {String|null} Tipo de evento o null
      */
-    extractEventFromMessage(message) { 
+    extractEventFromMessage(message) {
         // El evento viene en el campo "event" del mensaje
         return message.event || null;
     }
@@ -140,10 +143,10 @@ class NotificationBroadcaster {
             // Usar SystemHandler para obtener información consistente
             const SystemHandler = require('../handlers/system-handler');
             const systemHandler = new SystemHandler();
-            
+
             const systemState = await systemHandler.getSystemState();
             const device = systemState.devices.find(d => d.id === deviceId);
-            
+
             if (device) {
                 return device;
             }
@@ -249,6 +252,26 @@ class NotificationBroadcaster {
     }
 
     /**
+     * Crea notificación para reproducción finalizada
+     * @param {Object} deviceInfo - Información del dispositivo
+     * @param {Object} message - Mensaje MQTT
+     * @returns {Object} Notificación WebSocket
+     */
+    createPlayFinishedNotification(deviceInfo, message) {
+        const playData = {
+            track: message.track,
+            ntpStatus: message.ntp,
+            duration: message.duration || null
+        };
+
+        return ResponseBuilder.buildDeviceNotification(
+            'play_finished',
+            deviceInfo,
+            playData
+        );
+    }
+
+    /**
      * Envía notificación a todos los clientes conectados
      * @param {Object} notification - Notificación a enviar
      * @returns {Number} Número de clientes notificados
@@ -261,9 +284,9 @@ class NotificationBroadcaster {
             };
 
             const clientsNotified = clientManager.broadcastToAll(notification, filter);
-            
+
             console.log(`[NotificationBroadcaster] Evento enviado a ${clientsNotified} clientes: ${notification.event}`);
-            
+
             this.broadcastStats.successfulBroadcasts++;
             return clientsNotified;
 
@@ -283,13 +306,13 @@ class NotificationBroadcaster {
     async notifyClient(clientId, notification) {
         try {
             const sent = clientManager.sendToClient(clientId, notification);
-            
+
             if (sent) {
                 console.log(`[NotificationBroadcaster] Notificación enviada a ${clientId}: ${notification.event}`);
             } else {
                 console.warn(`[NotificationBroadcaster] No se pudo notificar a ${clientId}`);
             }
-            
+
             return sent;
 
         } catch (error) {
@@ -340,7 +363,7 @@ class NotificationBroadcaster {
      */
     healthCheck() {
         const stats = this.getStats();
-        
+
         return {
             healthy: stats.successRate > 0.9, // 90% de éxito
             totalEvents: stats.totalEvents,

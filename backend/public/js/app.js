@@ -114,6 +114,47 @@ function handleMessage(message) {
             console.log(`🏓 Pong recibido (Latencia: ${latency}ms)`);
             break;
 
+        case 'notification':
+            console.log(`🔔 Notificación ESP32: ${message.event}`);
+            console.log(`📱 Dispositivo: ${message.data?.deviceId || 'Unknown'} (${message.data?.deviceName || 'Sin nombre'})`);
+
+            switch (message.event) {
+                case 'heartbeat':
+                    console.log('💓 Heartbeat recibido del dispositivo');
+                    break;
+                case 'button_pressed':
+                    console.log('🚨 ¡BOTÓN DE PÁNICO PRESIONADO!');
+                    break;
+                case 'device_reset':
+                    console.log('🔄 Dispositivo reiniciado');
+                    break;
+                case 'play_finished':
+                    console.log('🎵 Reproducción de audio finalizada');
+                    break;
+                default:
+                    console.log(`📡 Evento: ${message.event}`);
+            }
+            break;
+
+        case 'device_command':  
+            console.log(`📤 Confirmación de comando: ${message.data?.command}`);
+            if (message.success) {
+                console.log(`✅ Comando ${message.data?.command} enviado correctamente`);
+                console.log(`📡 Estado: ${message.data?.status} - ${message.data?.message}`);
+            } else {
+                console.log(`❌ Error enviando comando: ${message.error?.message}`);
+            }
+            break;
+
+        case 'device_command_response':  // ✅ AGREGAR PARA RESPUESTAS DE COMANDOS
+            console.log(`📤 Respuesta de comando: ${message.command}`);
+            if (message.success) {
+                console.log(`✅ Comando ${message.command} ejecutado correctamente`);
+            } else {
+                console.log(`❌ Error en comando ${message.command}: ${message.error?.message}`);
+            }
+            break;
+
         case 'error':
             console.log(`❌ Error del servidor: [${message.error.code}] ${message.error.message}`);
             break;

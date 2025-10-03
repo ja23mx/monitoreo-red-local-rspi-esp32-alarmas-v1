@@ -6,7 +6,7 @@ Este módulo contiene funciones para validar el formato, campos obligatorios y d
 ## Funciones exportadas
 
 - **macFormat(mac):**  
-  Valida que la dirección MAC tenga 6 caracteres hexadecimales.
+  Valida que la dirección MAC tenga 6 caracteres alfanuméricos.
 
 - **TopicFormat(topic):**  
   Verifica que el topic MQTT tenga la estructura y caracteres válidos.
