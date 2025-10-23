@@ -58,21 +58,22 @@ class ResponseBuilder {
      * @returns {Object} Respuesta de handshake completa
      */
     static buildHandshakeResponse(devices = [], systemInfo = {}) {
-        return this.buildSuccessResponse(WEBSOCKET_CONFIG.MESSAGE_TYPES.HANDSHAKE, {
-            devices: devices.map(device => ({
-                id: device.id,
-                mac: device.mac,
-                status: device.status || 'unknown',
-                lastSeen: device.lastSeen || null,
-                alarmActive: device.alarmActive || false,
-                location: device.location || null,
-                name: device.name || device.id
-            })),
-            serverTime: new Date().toISOString(),
-            connectedClients: systemInfo.connectedClients || 0,
-            serverStatus: 'online',
-            ...systemInfo
-        });
+        return this.buildSuccessResponse(WEBSOCKET_CONFIG.MESSAGE_TYPES.HANDSHAKE_RSP,
+            {
+                devices: devices.map(device => ({
+                    id: device.id,
+                    mac: device.mac,
+                    status: device.status || 'unknown',
+                    lastSeen: device.lastSeen || null,
+                    alarmActive: device.alarmActive || false,
+                    location: device.location || null,
+                    name: device.name || device.id
+                })),
+                serverTime: new Date().toISOString(),
+                connectedClients: systemInfo.connectedClients || 0,
+                serverStatus: 'online',
+                ...systemInfo
+            });
     }
 
     /**

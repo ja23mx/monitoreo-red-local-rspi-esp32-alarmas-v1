@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <link rel="stylesheet" href="./css/toast.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>EventBus Test Console</h1>
+    <p>Abre la consola del navegador (F12)</p>
+
+    <div id="testContainer"></div>
+
+    <h1>Toast Test</h1>
+    <p>Haz click en los botones para probar toasts</p>
+
+    <div>
+        <button id="btnSuccess">✅ Success Toast</button>
+        <button id="btnError">❌ Error Toast</button>
+        <button id="btnWarning">⚠️ Warning Toast</button>
+        <button id="btnInfo">ℹ️ Info Toast</button>
+        <button id="btnMultiple">🔢 Multiple Toasts</button>
+        <button id="btnClear">🗑️ Clear All</button>
+    </div>
+
+    <script type="module">
+
+        // SECCION DE TESTS DE EVENTBUS //////////////////////////////////
+        //import EventBus from './js/core/EventBus.js';
+
+        // Hacer EventBus global para testing manual
+        //window.EventBus = EventBus;
+
+        /* 
+        // Test 1: Suscripción básica
+        console.log('✅ EventBus cargado correctamente');
+        console.log('Ejecuta los tests en la consola:');
+        console.log('  EventBus.setDebugMode(true);');
+        console.log('  EventBus.on("test", data => console.log("Recibido:", data));');
+        console.log('  EventBus.emit("test", {msg: "Hola"});'); */
+
+        /* 
+        // Test 2: Múltiples suscriptores
+        EventBus.on('multi', data => console.log('Listener 1:', data));
+        EventBus.on('multi', data => console.log('Listener 2:', data));
+        EventBus.emit('multi', 123); */
+
+        /* 
+        // Test 3: Remover suscriptor
+        const handler = data => console.log('Handler removible:', data);
+        EventBus.on('remove-test', handler);
+        EventBus.emit('remove-test', 'antes de remover'); // Debería aparecer
+        EventBus.off('remove-test', handler);
+        EventBus.emit('remove-test', 'después de remover'); // NO debería aparecer */
+
+        /* 
+        // Test 4: Modo debug
+        EventBus.setDebugMode(true);
+        EventBus.on('debug-test', data => { });
+        EventBus.emit('debug-test', 'data'); */
+
+        /*  
+         // Test 5: Validaciones
+         try {
+             EventBus.on(123, () => { }); // Debería fallar
+         } catch (error) {
+             console.log('✅ Error capturado:', error.message);
+         }
+         try {
+             EventBus.emit('test', data => { }); // Esto es válido (emit acepta cualquier data)
+             console.log('✅ Emit acepta funciones como data');
+         } catch (error) {
+             console.log('❌ No debería fallar');
+         } */
+
+        /* 
+        // Test 6: Métodos auxiliares
+        EventBus.on('count-test', () => { });
+        EventBus.on('count-test', () => { });
+        console.log('Listeners:', EventBus.listenerCount('count-test')); // Esperado: 2
+        console.log('Eventos:', EventBus.getEventNames()); // Esperado: array con nombres */
+        // FIN SECCION DE TESTS DE EVENTBUS //////////////////////////////////
+
+        // SECCION DE TESTS DE STATEMANAGER //////////////////////////////////
+        /* import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+
+        // Hacer globales para testing manual
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+
+        console.log('✅ EventBus y StateManager cargados');
+        console.log('Ejecuta los tests en la consola'); */
+        // FIN SECCION DE TESTS DE STATEMANAGER //////////////////////////////////
+
+        // SECCION DE TESTS DE APP-CONFIG //////////////////////////////////
+        /* import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+        import config from './js/config/app-config.js';
+
+        // Hacer globales para testing manual
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+        window.config = config;
+
+        console.log('✅ Módulos cargados:');
+        console.log('  - EventBus');
+        console.log('  - StateManager');
+        console.log('  - config');
+        console.log('\nEjecuta: config'); */
+        // FIN SECCION DE TESTS DE APP-CONFIG //////////////////////////////////
+
+        // SECCION DE TESTS DE DATEHELPERS //////////////////////////////////
+        /* import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+        import config from './js/config/app-config.js';
+        import DateHelpers from './js/utils/DateHelpers.js';
+
+        // Hacer globales para testing manual
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+        window.config = config;
+        window.DateHelpers = DateHelpers;
+
+        console.log('✅ Módulos cargados:');
+        console.log('  - EventBus');
+        console.log('  - StateManager');
+        console.log('  - config');
+        console.log('  - DateHelpers');
+        console.log('\nEjecuta tests de DateHelpers'); */
+        // FIN SECCION DE TESTS DE DATEHELPERS //////////////////////////////////
+
+        // SECCION DE TESTS DE DOMHELPERS //////////////////////////////////
+        /* import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+        import config from './js/config/app-config.js';
+        import DateHelpers from './js/utils/DateHelpers.js';
+        import DOMHelpers from './js/utils/DOMHelpers.js';
+
+        // Hacer globales para testing manual
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+        window.config = config;
+        window.DateHelpers = DateHelpers;
+        window.DOMHelpers = DOMHelpers;
+
+        console.log('✅ Módulos cargados:');
+        console.log('  - EventBus');
+        console.log('  - StateManager');
+        console.log('  - config');
+        console.log('  - DateHelpers');
+        console.log('  - DOMHelpers');
+        console.log('\nEjecuta tests de DOMHelpers'); */
+        // FIN SECCION DE TESTS DE DOMHELPERS //////////////////////////////////
+
+        import DOMHelpers from './js/utils/DOMHelpers.js';
+        import Toast from './js/components/ui/Toast.js';
+
+        // Hacer globales para testing
+        window.DOMHelpers = DOMHelpers;
+        window.Toast = Toast;
+
+        // Botones
+        DOMHelpers.on(DOMHelpers.select('#btnSuccess'), 'click', () => {
+            Toast.show('✅ Operación completada exitosamente', 'success');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnError'), 'click', () => {
+            Toast.show('❌ Error: No se pudo conectar al servidor', 'error');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnWarning'), 'click', () => {
+            Toast.show('⚠️ Advertencia: Batería baja', 'warning');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnInfo'), 'click', () => {
+            Toast.show('ℹ️ Información: Sistema actualizado', 'info');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnMultiple'), 'click', () => {
+            Toast.show('Toast 1', 'success');
+            setTimeout(() => Toast.show('Toast 2', 'error'), 200);
+            setTimeout(() => Toast.show('Toast 3', 'warning'), 400);
+            setTimeout(() => Toast.show('Toast 4', 'info'), 600);
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnClear'), 'click', () => {
+            Toast.clear();
+        });
+
+        console.log('✅ Toast cargado correctamente');
+    </script>
+</body>
+
+</html>

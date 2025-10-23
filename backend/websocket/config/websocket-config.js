@@ -23,6 +23,7 @@ const WEBSOCKET_CONFIG = {
     // Tipos de mensaje válidos
     MESSAGE_TYPES: {
         HANDSHAKE: 'handshake',
+        HANDSHAKE_RSP: 'handshake_response',
         DEVICE_COMMAND: 'device_command',
         SYSTEM_INFO: 'system_info',
         NOTIFICATION: 'notification',

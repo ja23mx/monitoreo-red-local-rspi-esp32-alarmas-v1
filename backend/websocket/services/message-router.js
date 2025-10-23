@@ -173,7 +173,7 @@ class MessageRouter {
      * @param {Object} messageData - Datos del mensaje
      */
     async handlePing(ws, messageData) {
-        console.log('[MessageRouter] Ping recibido');
+        //console.log('[MessageRouter] Ping recibido');
 
         const pongResponse = ResponseBuilder.buildPingPongResponse('pong', {
             originalTimestamp: messageData.timestamp

@@ -31,7 +31,7 @@ function Iso8601Recent(time, toleranceSeconds = 60) {
         const msgTime = DateTime.fromISO(time, { zone: 'utc' });
         const now = DateTime.utc();
         const diff = Math.abs(now.diff(msgTime, 'seconds').seconds);
-        console.log('[Iso8601Recent] msgTime:', msgTime.toISO(), 'now:', now.toISO(), 'diff:', diff);
+        //console.log('[Iso8601Recent] msgTime:', msgTime.toISO(), 'now:', now.toISO(), 'diff:', diff);
         return diff <= toleranceSeconds;
     } catch (e) {
         console.log('[Iso8601Recent] Error en DateTime.fromISO:', e);

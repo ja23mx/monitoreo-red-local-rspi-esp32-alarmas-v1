@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test DeviceCard</title>
+    <link rel="stylesheet" href="./css/toast.css">
+    <link rel="stylesheet" href="./css/device-card.css">
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+
+        #cardsContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>DeviceCard Test</h1>
+
+    <div>
+        <button id="btnLoadDevices">📥 Cargar Devices (Handshake)</button>
+        <button id="btnToggleAlarm">🚨 Toggle Alarma ESP32_001</button>
+        <button id="btnToggleStatus">🔌 Toggle Status ESP32_001</button>
+    </div>
+
+    <div id="cardsContainer"></div>
+
+    <script type="module">
+        import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+        import DOMHelpers from './js/utils/DOMHelpers.js';
+        import DeviceList from './js/components/DeviceList.js';
+        import Toast from './js/components/ui/Toast.js';
+
+        // Importar handlers
+        import './js/services/websocket/handlers/HandshakeHandler.js';
+        import './js/services/websocket/handlers/DeviceUpdateHandler.js';
+        import './js/services/websocket/handlers/DeviceAlarmHandler.js';
+
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+        window.Toast = Toast;
+
+        // Crear DeviceList y montar
+        const deviceList = new DeviceList();
+        deviceList.mount('#cardsContainer');
+
+        window.deviceList = deviceList;
+
+
+
+        // Botón: Cargar devices
+        DOMHelpers.on(DOMHelpers.select('#btnLoadDevices'), 'click', () => {
+            EventBus.emit('message:handshake_response', {
+                type: 'handshake_response',
+                success: true,
+                data: {
+                    devices: [
+                        {
+                            id: 'ESP32_001',
+                            mac: 'AA:BB:CC:DD:EE:01',
+                            name: 'Poste Entrada',
+                            location: 'Entrada Principal',
+                            status: 'online',
+                            alarmActive: false,
+                            lastSeen: new Date().toISOString()
+                        },
+                        {
+                            id: 'ESP32_002',
+                            mac: 'AA:BB:CC:DD:EE:02',
+                            name: 'Poste Salida',
+                            location: 'Salida Trasera',
+                            status: 'offline',
+                            alarmActive: false,
+                            lastSeen: new Date(Date.now() - 300000).toISOString()
+                        },
+                        {
+                            id: 'ESP32_003',
+                            mac: 'AA:BB:CC:DD:EE:03',
+                            name: 'Poste Parque',
+                            location: 'Parque Central',
+                            status: 'online',
+                            alarmActive: true,
+                            lastSeen: new Date(Date.now() - 60000).toISOString()
+                        }
+                    ],
+                    mqttConnected: true,
+                    serverTime: new Date().toISOString()
+                }
+            });
+        });
+
+        // Botón: Toggle alarma
+        DOMHelpers.on(DOMHelpers.select('#btnToggleAlarm'), 'click', () => {
+            const device = StateManager.getDevice('ESP32_001');
+            if (!device) return;
+
+            EventBus.emit('message:device_alarm', {
+                type: 'device_alarm',
+                deviceId: 'ESP32_001',
+                alarmActive: !device.alarmActive,
+                timestamp: new Date().toISOString()
+            });
+        });
+
+        // Botón: Toggle status
+        DOMHelpers.on(DOMHelpers.select('#btnToggleStatus'), 'click', () => {
+            const device = StateManager.getDevice('ESP32_001');
+            if (!device) return;
+
+            EventBus.emit('message:device_update', {
+                type: 'device_update',
+                deviceId: 'ESP32_001',
+                status: device.status === 'online' ? 'offline' : 'online',
+                lastSeen: new Date().toISOString()
+            });
+        });
+
+        console.log('✅ DeviceList test listo');
+    </script>
+</body>
+
+</html>

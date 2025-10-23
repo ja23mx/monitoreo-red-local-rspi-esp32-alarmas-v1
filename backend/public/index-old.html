@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Mockup Monitoreo de Postes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Roboto via Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --unam-blue: #002B7A;
+            --accent: #D59F0F;
+            --bg-dark: #1E3A5F;
+            --header-blue: #3B78D1;
+            --panel-bg: #F4F7FB;
+            --row-bg: #FFFFFF;
+            --text-dark: #0B2447;
+            --subtext: #7F9FC9;
+            --icon-box: #00AEEF;
+            --online: #22C55E;
+            --offline: #FF4D4F;
+            --radius-sm: 5px;
+            --row-height: 45px;
+            --container-w: 1200px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: "Roboto", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background: var(--bg-dark);
+            color: #fff;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* Header full-width bar (canvas) */
+        .header-bar {
+            width: 100%;
+            background: transparent;
+            padding: 10px 0px 8px 0px;
+        }
+
+        .container {
+            max-width: var(--container-w);
+            margin: 0 auto;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        /* Header card inside container (rounded like panel) */
+        .header-card {
+            width: 100%;
+            background: var(--panel-bg);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            box-shadow: 0 8px 22px rgba(2, 43, 122, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app {
+            max-width: var(--container-w);
+            margin: 15px auto;
+            padding: 0 10px;
+        }
+
+        /* Header content inside header-card */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+            letter-spacing: 0.2px;
+        }
+
+        .time-box {
+            background: var(--accent);
+            color: var(--unam-blue);
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.08);
+            min-width: 110px;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        /* Panel: large box that contains rows */
+        .panel {
+            background: var(--panel-bg);
+            border-radius: calc(var(--radius-sm) + 4px);
+            padding: 10px;
+            margin-top: 12px;
+            box-shadow: 0 8px 28px rgba(2, 43, 122, 0.08);
+            border: 1px solid rgba(11, 36, 71, 0.06);
+        }
+
+        /* select-all row */
+        .select-all-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 18px;
+            margin-bottom: 8px;
+        }
+
+        .select-all-row .label-text {
+            margin-left: 10px;
+            color: var(--text-dark);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        /* custom checkbox (label wrapper) */
+        .checkbox {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox input[type="checkbox"] {
+            display: none;
+        }
+
+        .checkbox .box {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(11, 36, 71, 0.14);
+            border-radius: 4px;
+            background: #fff;
+            position: relative;
+            flex: 0 0 18px;
+        }
+
+        .checkbox .box::after {
+            content: "";
+            position: absolute;
+            left: 5px;
+            top: 1px;
+            width: 5px;
+            height: 10px;
+            border: solid transparent;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            display: none;
+        }
+
+        .checkbox input[type="checkbox"]:checked+.box {
+            background: var(--header-blue);
+            border-color: var(--header-blue);
+        }
+
+        .checkbox input[type="checkbox"]:checked+.box::after {
+            border-color: #fff;
+            display: block;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 28px 1fr 80px 80px;
+            /* added checkbox column (28px) */
+            align-items: center;
+            gap: 16px;
+            background: var(--row-bg);
+            color: var(--text-dark);
+            border-radius: 6px;
+            padding: 12px 16px;
+            height: var(--row-height);
+            margin-bottom: 12px;
+            box-shadow: 0 4px 14px rgba(2, 43, 122, 0.04);
+            transition: box-shadow .12s ease;
+            user-select: none;
+        }
+
+        .row.selected {
+            /* leve borde de 2px con --accent (sin afectar tamaño) */
+            box-shadow: 0 4px 14px rgba(2, 43, 122, 0.04), 0 0 0 1px var(--accent);
+        }
+
+        .row.clicked {
+            transform: translateY(-2px) scale(0.998);
+            box-shadow: 0 6px 18px rgba(2, 43, 122, 0.14);
+        }
+
+        .icon-box {
+            width: 56px;
+            height: 38px;
+            background: var(--icon-box);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 18px;
+            margin-left: 0;
+            justify-self: center;
+            transition: transform .12s ease, box-shadow .12s ease;
+            cursor: pointer;
+        }
+
+        .icon-box:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 10px 24px rgba(2, 43, 122, 0.14);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            color: #fff;
+            font-weight: 600;
+            padding: 8px 10px;
+            font-size: 13px;
+            box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+            width: auto;
+            min-width: 64px;
+            height: 20px;
+        }
+
+        .status.online {
+            background: var(--online);
+        }
+
+        .status.offline {
+            background: var(--offline);
+        }
+
+        /* Small details for content inside card */
+        .left-col {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-dark);
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 6px;
+        }
+
+        .meta {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--subtext);
+            line-height: 1.0;
+            letter-spacing: 0.2px;
+        }
+
+        /* Emergency modal styles */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+            z-index: 1200;
+            padding: 24px;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .emergency-modal {
+            width: 380px;
+            max-width: calc(100% - 48px);
+            background: var(--bg-dark);
+            /* dark panel */
+            color: #fff;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 18px 48px rgba(2, 43, 122, 0.32);
+            text-align: center;
+            outline: none;
+        }
+
+        .emergency-modal .modal-head {
+            font-weight: 700;
+            margin-bottom: 14px;
+            font-size: 20px;
+        }
+
+        .counter-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 6px solid var(--offline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px auto 14px;
+            font-size: 34px;
+            font-weight: 700;
+            color: var(--offline);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .modal-sub {
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 18px;
+            font-size: 13px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .btn {
+            border: 0;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            min-width: 160px;
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(2, 43, 122, 0.12);
+        }
+
+        .btn-send {
+            background: var(--offline);
+            /* rojo */
+        }
+
+        .btn-cancel {
+            background: var(--online);
+            /* verde */
+        }
+
+        /* small responsive tweak */
+        @media (max-width: 420px) {
+            .emergency-modal {
+                padding: 16px;
+                width: 92%;
+            }
+
+            .counter-circle {
+                width: 100px;
+                height: 100px;
+                font-size: 28px;
+            }
+
+            .btn {
+                min-width: 140px;
+                padding: 10px 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header full-width bar with rounded header-card -->
+    <header class="header-bar" role="banner">
+        <div class="container">
+            <div class="header-card" role="group" aria-label="Encabezado">
+                <div class="header">
+                    <div class="title">Monitoreo de Postes — UNAM</div>
+                    <div id="clock" class="time-box" aria-live="polite">--:-- --</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="app">
+        <!-- Panel container (el gran recuadro) -->
+        <main class="panel" role="main" aria-label="Listado de postes">
+            <!-- Select all control (inicio dentro de main) -->
+            <div class="select-all-row">
+                <label class="checkbox" title="Seleccionar todo">
+                    <input id="select-all" type="checkbox" />
+                    <span class="box" aria-hidden="true"></span>
+                    <span class="label-text">Seleccionar Todo</span>
+                </label>
+            </div>
+
+            <!-- Row 1: ONLINE -->
+            <div id="row-1" class="row" onclick="rowClicked('row-1')">
+                <label class="checkbox" style="margin-left:2px;">
+                    <input class="row-check" data-id="row-1" type="checkbox" />
+                    <span class="box" aria-hidden="true"></span>
+                </label>
+
+                <div class="left-col">
+                    <div class="name">Poste 001 — Av. Principal</div>
+                    <div class="meta">Última lectura: Hace 1 minuto</div>
+                </div>
+
+                <div class="icon-box" title="Prueba sonora">
+                    <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                </div>
+
+                <div class="status online" aria-label="Estado: ONLINE">ONLINE</div>
+            </div>
+
+            <!-- Row 2: OFFLINE -->
+            <div id="row-2" class="row" onclick="rowClicked('row-2')">
+                <label class="checkbox" style="margin-left:2px;">
+                    <input class="row-check" data-id="row-2" type="checkbox" />
+                    <span class="box" aria-hidden="true"></span>
+                </label>
+
+                <div class="left-col">
+                    <div class="name">Poste 002 — Calle Secundaria</div>
+                    <div class="meta">Última lectura: Ayer 23/septiembre 12:45PM</div>
+                </div>
+
+                <div class="icon-box" title="Prueba sonora">
+                    <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                </div>
+
+                <div class="status offline" aria-label="Estado: OFFLINE">OFFLINE</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Emergency modal (hidden by default) -->
+    <div id="emergency-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+        <div id="emergency-modal" class="emergency-modal" role="document" tabindex="-1"
+            aria-labelledby="emergency-title">
+            <div id="emergency-title" class="modal-head">Prueba de Audio</div>
+
+            <div id="counter" class="counter-circle" aria-live="polite"></div>
+
+            <div class="modal-sub">Enviando en <strong id="counter-text"></strong> segundos</div>
+
+            <div class="modal-actions">
+                <button id="send-now" class="btn btn-send">ENVIAR AHORA</button>
+                <button id="cancel-now" class="btn btn-cancel">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- añadir justo dentro de <body> -->
+    <div id="focus-sentinel" tabindex="-1" style="position:fixed;left:-9999px;width:1px;height:1px;overflow:hidden;">
+    </div>
+
+    <script>
+        // selección y API pública
+        (function () {
+            const selected = new Set();
+            const callbacks = [];
+
+            function updateSelectAllCheckbox() {
+                const all = document.querySelectorAll('.row-check');
+                const checked = document.querySelectorAll('.row-check:checked').length;
+                const selectAll = document.getElementById('select-all');
+                if (!selectAll) return;
+                selectAll.indeterminate = (checked > 0 && checked < all.length);
+                selectAll.checked = (checked === all.length && all.length > 0);
+            }
+
+            function setRowVisual(id, checked) {
+                const row = document.getElementById(id);
+                if (!row) return;
+                if (checked) row.classList.add('selected');
+                else row.classList.remove('selected');
+            }
+
+            function notify() {
+                const list = getSelectedRows();
+                callbacks.forEach(cb => {
+                    try { cb(list); } catch (e) { console.error(e); }
+                });
+            }
+
+            function toggleRowSelection(id, checked) {
+                const input = document.querySelector(`.row-check[data-id="${id}"]`);
+                if (!input) return;
+                input.checked = !!checked;
+                if (checked) selected.add(id);
+                else selected.delete(id);
+                setRowVisual(id, !!checked);
+                updateSelectAllCheckbox();
+                notify();
+            }
+
+            function toggleSelectAll(checked) {
+                const inputs = document.querySelectorAll('.row-check');
+                inputs.forEach(i => {
+                    const id = i.dataset.id;
+                    i.checked = !!checked;
+                    if (checked) selected.add(id);
+                    else selected.delete(id);
+                    setRowVisual(id, !!checked);
+                });
+                updateSelectAllCheckbox();
+                notify();
+            }
+
+            function getSelectedRows() {
+                return Array.from(selected);
+            }
+
+            function onSelectionChange(cb) {
+                if (typeof cb === 'function') callbacks.push(cb);
+            }
+
+            // init listeners
+            document.addEventListener('DOMContentLoaded', () => {
+                // row checkbox listeners
+                document.querySelectorAll('.row-check').forEach(chk => {
+                    chk.addEventListener('change', (e) => {
+                        e.stopPropagation(); // evitar que el click active rowClicked
+                        const id = chk.dataset.id;
+                        const checked = chk.checked;
+                        if (checked) selected.add(id);
+                        else selected.delete(id);
+                        setRowVisual(id, checked);
+                        updateSelectAllCheckbox();
+                        notify();
+                    });
+                    // also prevent click bubbling from the box/label
+                    chk.addEventListener('click', (e) => e.stopPropagation());
+                });
+
+                // select all listener
+                const selectAll = document.getElementById('select-all');
+                if (selectAll) {
+                    selectAll.addEventListener('change', (e) => {
+                        const checked = !!selectAll.checked;
+                        toggleSelectAll(checked);
+                    });
+                    selectAll.addEventListener('click', (e) => e.stopPropagation());
+                }
+
+                // initialize state
+                updateSelectAllCheckbox();
+            });
+
+            // expose API
+            window.toggleRowSelection = toggleRowSelection;
+            window.toggleSelectAll = toggleSelectAll;
+            window.getSelectedRows = getSelectedRows;
+            window.onSelectionChange = onSelectionChange;
+        })();
+
+        // Reloj en formato 12h AM/PM (actualiza cada segundo)
+        function updateClock() {
+            const now = new Date();
+            let hh = now.getHours();
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hh >= 12 ? 'PM' : 'AM';
+            hh = hh % 12;
+            hh = hh ? hh : 12;
+            document.getElementById('clock').textContent = `${hh}:${mm} ${ampm}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Manejo mínimo para cuando se hace click en una fila (no altera selección)
+        function rowClicked(id) {
+            console.log('Row clicked (test only):', id);
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('clicked');
+            setTimeout(() => el.classList.remove('clicked'), 220);
+        }
+
+        // Emergency modal behavior (patched: manage focus before toggling aria-hidden)
+        (function () {
+            const BACKDROP = document.getElementById('emergency-backdrop');
+            const MODAL = document.getElementById('emergency-modal');
+            const COUNTER_EL = document.getElementById('counter');
+            const COUNTER_TEXT = document.getElementById('counter-text');
+            const SEND_BTN = document.getElementById('send-now');
+            const CANCEL_BTN = document.getElementById('cancel-now');
+
+            let countdown = 5;
+            let timerId = null;
+            let currentRow = null;
+            let previousActive = null; // store element that had focus before opening
+
+            function openEmergencyModal(rowId) {
+                currentRow = rowId || null;
+                // save previously focused element to restore later
+                previousActive = document.activeElement;
+                countdown = 5;
+                COUNTER_EL.textContent = countdown;
+                COUNTER_TEXT.textContent = countdown;
+
+                // reveal modal first (aria-hidden false) then move focus inside
+                BACKDROP.setAttribute('aria-hidden', 'false');
+                BACKDROP.classList.add('active');
+
+                // focus cancel for accessibility (delay to ensure element is focusable)
+                setTimeout(() => CANCEL_BTN.focus(), 60);
+
+                startCountdown();
+            }
+
+            function closeEmergencyModal() {
+                stopCountdown();
+                // Before hiding modal (aria-hidden=true), ensure focus is moved outside the modal
+                try {
+                    // Prefer restoring previous active element if still in document and visible
+                    if (previousActive && typeof previousActive.focus === 'function' && document.contains(previousActive)) {
+                        previousActive.focus();
+                    } else {
+                        // fallback: focus a safe element (body)
+                        document.body.focus();
+                    }
+                } catch (e) {
+                    document.body.focus();
+                } finally {
+                    previousActive = null;
+                }
+
+                // hide modal after focus moved
+                const sentinel = document.getElementById('focus-sentinel');
+                if (sentinel) sentinel.focus(); // mover el foco fuera del modal de forma fiable
+                BACKDROP.classList.remove('active');
+                BACKDROP.setAttribute('aria-hidden', 'true');
+                currentRow = null;
+            }
+
+            function startCountdown() {
+                stopCountdown();
+                timerId = setInterval(() => {
+                    countdown--;
+                    if (countdown < 0) {
+                        stopCountdown();
+                        // auto-send at 0 (log only)
+                        sendEmergency();
+                        return;
+                    }
+                    COUNTER_EL.textContent = countdown;
+                    COUNTER_TEXT.textContent = countdown;
+                }, 1000);
+            }
+
+            function stopCountdown() {
+                if (timerId) { clearInterval(timerId); timerId = null; }
+            }
+
+            function sendEmergency() {
+                console.log('sendEmergency called', { row: currentRow });
+                closeEmergencyModal();
+            }
+
+            // wire buttons
+            SEND_BTN.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sendEmergency();
+            });
+
+            CANCEL_BTN.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeEmergencyModal();
+            });
+
+            // clicking backdrop (outside modal) cancels
+            BACKDROP.addEventListener('click', (e) => {
+                if (e.target === BACKDROP) closeEmergencyModal();
+            });
+
+            // ESC to close
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && BACKDROP.classList.contains('active')) {
+                    closeEmergencyModal();
+                }
+            });
+
+            // attach to all icon-box buttons
+            document.querySelectorAll('.icon-box').forEach(box => {
+                box.addEventListener('click', (e) => {
+                    e.stopPropagation(); // avoid triggering row click
+                    const row = box.closest('.row');
+                    const rowId = row ? row.id : null;
+                    openEmergencyModal(rowId);
+                });
+            });
+
+            // expose sendEmergency
+            window.sendEmergency = sendEmergency;
+
+        })();
+
+        // --- INICIO: CÓDIGO WEBSOCKET ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // La URL del WebSocket apunta al mismo host y puerto que el servidor HTTP.
+            // Esto construye la URL del WebSocket dinámicamente desde la URL de la página.
+            const ws = new WebSocket(`ws://${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log('[WebSocket] Conexión establecida con el servidor.');
+                // Enviar un mensaje de prueba al servidor.
+                ws.send('¡Hola, servidor! Soy el frontend.');
+            };
+
+            ws.onmessage = (event) => {
+                console.log(`[WebSocket] Mensaje recibido del servidor: ${event.data}`);
+            };
+
+            ws.onclose = () => {
+                console.log('[WebSocket] Conexión cerrada.');
+            };
+
+            ws.onerror = (error) => {
+                console.error('[WebSocket] Error en la conexión:', error);
+            };
+        });
+        // --- FIN: CÓDIGO WEBSOCKET ---
+    </script>
+</body>
+
+</html>

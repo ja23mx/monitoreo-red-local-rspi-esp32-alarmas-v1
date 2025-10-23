@@ -199,9 +199,9 @@ class WebSocketManager {
                 }
             }
 
-            if (pingSent > 0) {
+            /* if (pingSent > 0) {
                 console.log(`[WebSocket] Ping enviado a ${pingSent} clientes`);
-            }
+            } */
 
         } catch (error) {
             console.error('[WebSocket] Error en heartbeat:', error);
