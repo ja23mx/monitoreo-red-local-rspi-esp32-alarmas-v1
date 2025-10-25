@@ -158,7 +158,7 @@ class DeviceCard {
         // Location
         if (device.location) {
             const location = DOMHelpers.createElement('p', 'device-location');
-            DOMHelpers.setContent(location, `📍 ${device.location}`);
+            DOMHelpers.setContent(location, `${device.location}`);
             info.appendChild(location);
         }
 
@@ -168,11 +168,11 @@ class DeviceCard {
         info.appendChild(id);
 
         // MAC
-        if (device.mac) {
+        /* if (device.mac) {
             const mac = DOMHelpers.createElement('p', 'device-mac');
             DOMHelpers.setContent(mac, `MAC: ${device.mac}`);
             info.appendChild(mac);
-        }
+        } */
 
         // Last Seen
         const lastSeen = DOMHelpers.createElement('p', 'device-last-seen');
@@ -200,15 +200,15 @@ class DeviceCard {
         const actions = DOMHelpers.createElement('div', 'device-actions');
 
         // Botón Ping
-        const btnPing = this.createActionButton('ping', '📡 Ping', 'btn-ping');
-        actions.appendChild(btnPing);
+        ///const btnPing = this.createActionButton('ping', 'Ping', 'btn-ping');
+        //actions.appendChild(btnPing);
 
         // Botón Reset
-        const btnReset = this.createActionButton('reset', '🔄 Reset', 'btn-reset');
-        actions.appendChild(btnReset);
+        //const btnReset = this.createActionButton('reset', 'Reset', 'btn-reset');
+        //actions.appendChild(btnReset);
 
         // Botón Audio
-        const btnAudio = this.createActionButton('play_audio', '🔊 Audio', 'btn-audio');
+        const btnAudio = this.createActionButton('play_audio', 'Probar', 'btn-audio');
         actions.appendChild(btnAudio);
 
         return actions;

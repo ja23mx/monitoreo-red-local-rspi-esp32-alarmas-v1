@@ -53,11 +53,11 @@ class HandshakeHandler {
             }
 
             // Actualizar estado MQTT (ahora viene como mqttStatus)
-            if (data.mqttStatus) {
+            /* if (data.mqttStatus) {
                 const mqttConnected = data.mqttStatus === 'connected';
                 StateManager.setMQTTConnected(mqttConnected);
                 console.log(`[HandshakeHandler] Estado MQTT: ${mqttConnected ? 'CONECTADO' : 'DESCONECTADO'}`);
-            }
+            } */
 
             // Actualizar tiempo del servidor
             if (data.serverTime) {
