@@ -43,7 +43,7 @@ Todos los mensajes WebSocket deben seguir esta estructura básica:
 **Respuesta del Servidor:**
 ```json
 {
-  "type": "handshake",
+  "type": "handshake_response",
   "timestamp": "2025-09-18T10:30:00.100Z",
   "success": true,
   "data": {
@@ -53,10 +53,18 @@ Todos los mensajes WebSocket deben seguir esta estructura básica:
         "mac": "AA:BB:CC:DD:EE:FF",
         "status": "online",
         "lastSeen": "2025-09-18T10:29:45.000Z",
-        "alarmActive": false
+        "alarmActive": false,
+        "location":"Parque Central",
+        "name":"Poste Parque"
       }
     ],
-    "serverTime": "2025-09-18T10:30:00.100Z"
+    "serverTime": "2025-09-18T10:30:00.100Z",
+    "connectedClients":1,
+    "serverStatus":"online",
+    "serverUptime":86.843877991,
+    "serverVersion":"1.0.0",
+    "mqttStatus":"connected",
+    "lastUpdate":"2025-10-08T02:19:05.214Z"
   }
 }
 ```

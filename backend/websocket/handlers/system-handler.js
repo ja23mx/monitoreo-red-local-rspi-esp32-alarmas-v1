@@ -54,6 +54,9 @@ class SystemHandler {
             // Enviar respuesta
             if (ws.readyState === 1) {
                 ws.send(JSON.stringify(handshakeResponse));
+
+                /* console.log(`[SystemHandler] Respuesta de handshake enviada a cliente: ${client.id}`);
+                console.log(`handshakeResponse: ${JSON.stringify(handshakeResponse)}`); */
                 
                 // Actualizar estado del cliente a READY
                 clientManager.updateClientState(client.id, WEBSOCKET_CONFIG.CONNECTION_STATES.READY);

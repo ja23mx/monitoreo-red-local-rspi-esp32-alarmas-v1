@@ -1,0 +1,223 @@
+/**
+ * DeviceCard Styles
+ */
+
+.device-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.device-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Estados */
+.device-card.online {
+    border-color: #10b981;
+}
+
+.device-card.offline {
+    border-color: #ef4444;
+    opacity: 0.7;
+}
+
+.device-card.alarm-active {
+    border-color: #dc2626;
+    animation: pulse-alarm 1.5s infinite;
+}
+
+@keyframes pulse-alarm {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+    }
+}
+
+/* Header */
+.device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.device-name {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.device-status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.device-status-badge.online {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.device-status-badge.offline {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Info */
+.device-info {
+    margin-bottom: 16px;
+}
+
+.device-info p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.device-location {
+    font-weight: 500;
+    color: #374151;
+}
+
+.device-last-seen {
+    font-style: italic;
+    cursor: help;
+}
+
+/* Alarma */
+.device-alarm-indicator {
+    background: #dc2626;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 16px;
+    animation: blink-alarm 1s infinite;
+}
+
+@keyframes blink-alarm {
+
+    0%,
+    50%,
+    100% {
+        opacity: 1;
+    }
+
+    25%,
+    75% {
+        opacity: 0.6;
+    }
+}
+
+/* Actions */
+.device-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.btn-action {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-action:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.btn-action:active {
+    transform: scale(0.95);
+}
+
+.btn-ping {
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.btn-ping:hover {
+    background: #eff6ff;
+}
+
+.btn-reset {
+    color: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.btn-reset:hover {
+    background: #fffbeb;
+}
+
+.btn-audio {
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.btn-audio:hover {
+    background: #d1fae5;
+}
+
+/* Error */
+.device-card-error {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .device-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.device-list-empty {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-message {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin: 8px 0;
+}
+
+.empty-hint {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 8px 0;
+}

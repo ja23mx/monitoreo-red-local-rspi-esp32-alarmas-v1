@@ -33,10 +33,14 @@ function process(topic, payload, mqttClient) {
 
 
     // Validación de formato y campos obligatorios
-    // DESHABILITADO POR AHORA, PARA EVITAR QUE EVALUE TIEMPO DE PAYLOAD   
-    //const errors = validators.searchErrors(payload);
 
-    const errors = [];
+    const errors = validators.searchErrors(payload);
+
+    /* console.log('[Processor] Validando mensaje para nodo', mac);
+    console.log('[Processor] Payload:', payload);
+    console.log('[Processor] Errores encontrados:', errors); */
+
+    // const errors = [];
 
     if (errors.length > 0) {
         console.error(`[Processor] Errores de validación para nodo ${mac}:`, errors);

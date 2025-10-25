@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test WebSocket</title>
+    <link rel="stylesheet" href="./css/toast.css">
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .connected {
+            background: #10b981;
+            color: white;
+        }
+
+        .disconnected {
+            background: #ef4444;
+            color: white;
+        }
+
+        .connecting {
+            background: #f59e0b;
+            color: white;
+        }
+
+        #messages {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebSocket Test</h1>
+
+    <div id="status" class="disconnected">Estado: DESCONECTADO</div>
+
+    <div>
+        <button id="btnConnect">🔌 Conectar</button>
+        <button id="btnDisconnect">🔌 Desconectar</button>
+        <button id="btnSendPing">📤 Enviar Ping</button>
+        <button id="btnSendHandshake">🤝 Enviar Handshake</button>
+        <button id="btnCheckState">ℹ️ Check State</button>
+        <button id="btnSimulateHandshake">🤝 Simular Handshake</button>
+        <button id="btnSimulateUpdate">📡 Simular Update</button>
+        <button id="btnCheckDevices">🔍 Ver Devices</button>
+        <button id="btnActivateAlarm">🚨 Activar Alarma</button>
+        <button id="btnDeactivateAlarm">✅ Desactivar Alarma</button>
+        <button id="btnReconnectStatus">📊 Estado Reconexión</button>
+    </div>
+
+    <h3>Mensajes:</h3>
+    <div id="messages"></div>
+
+    <script type="module">
+        import EventBus from './js/core/EventBus.js';
+        import StateManager from './js/core/StateManager.js';
+        import WebSocketService from './js/services/websocket/WebSocketService.js';
+        import DOMHelpers from './js/utils/DOMHelpers.js';
+        import MessageRouter from './js/services/websocket/MessageRouter.js';
+        import HandshakeHandler from './js/services/websocket/handlers/HandshakeHandler.js';
+        import DeviceUpdateHandler from './js/services/websocket/handlers/DeviceUpdateHandler.js';
+        import DeviceAlarmHandler from './js/services/websocket/handlers/DeviceAlarmHandler.js';
+        import ConnectionManager from './js/services/websocket/ConnectionManager.js';
+
+        window.EventBus = EventBus;
+        window.StateManager = StateManager;
+        window.WebSocketService = WebSocketService;
+        window.MessageRouter = MessageRouter;
+        window.ConnectionManager = ConnectionManager;
+
+        const statusDiv = DOMHelpers.select('#status');
+        const messagesDiv = DOMHelpers.select('#messages');
+
+        // Función helper para loguear
+        function log(msg, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = {
+                info: '#3b82f6',
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b'
+            }[type] || '#666';
+
+            const div = DOMHelpers.createElement('div');
+            div.innerHTML = `<span style="color: ${color}">[${timestamp}] ${msg}</span>`;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Escuchar eventos WebSocket
+        EventBus.on('websocket:connected', () => {
+            log('✅ WebSocket conectado', 'success');
+            statusDiv.textContent = 'Estado: CONECTADO';
+            statusDiv.className = 'connected';
+        });
+
+        EventBus.on('websocket:disconnected', (data) => {
+            log(`⚠️ WebSocket desconectado (code: ${data.code})`, 'warning');
+            statusDiv.textContent = 'Estado: DESCONECTADO';
+            statusDiv.className = 'disconnected';
+        });
+
+        EventBus.on('websocket:error', (error) => {
+            log('❌ Error de WebSocket', 'error');
+            console.error('Error:', error);
+        });
+
+
+        // Escuchar device_update
+        EventBus.on('message:device_update', (message) => {
+            log(`📡 Device update: ${message.deviceId} → ${message.status}`, 'info');
+        });
+
+        // Escuchar device_alarm
+        EventBus.on('message:device_alarm', (message) => {
+            log(`🚨 ALARMA: ${message.deviceId} → ${message.alarmActive ? 'ACTIVADA' : 'DESACTIVADA'}`, 'error');
+        });
+
+        // Escuchar pong
+        EventBus.on('message:pong', (message) => {
+            log('🏓 Pong recibido', 'success');
+        });
+
+        // Escuchar error
+        EventBus.on('message:error', (message) => {
+            log(`❌ Error: ${message.message}`, 'error');
+        });
+
+        // Escuchar command_response
+        EventBus.on('message:command_response', (message) => {
+            log(`✅ Command response: ${message.command} → ${message.success ? 'OK' : 'FAIL'}`, 'success');
+        });
+
+        // Escuchar evento handshake:completed
+        EventBus.on('handshake:completed', (data) => {
+            log(`✅ Handshake completado: ${data.onlineCount}/${data.devicesCount} online`, 'success');
+            console.log('Handshake data:', data);
+        });
+
+        // Escuchar evento device:alarm:changed
+        EventBus.on('device:alarm:changed', (data) => {
+            log(`🚨 Evento alarma: ${data.deviceName} → ${data.alarmActive ? 'ON' : 'OFF'}`, 'warning');
+            console.log('Alarm event data:', data);
+        });
+
+        // Escuchar eventos de reconexión
+        EventBus.on('connection:reconnecting', (data) => {
+            log(`🔄 Reconectando (${data.attempt}/${data.maxAttempts}) en ${data.delay / 1000}s...`, 'warning');
+        });
+
+        EventBus.on('connection:failed', (data) => {
+            log(`❌ Reconexión fallida después de ${data.attempts} intentos`, 'error');
+        });
+
+        // Botones
+        DOMHelpers.on(DOMHelpers.select('#btnConnect'), 'click', async () => {
+            log('🔌 Intentando conectar...', 'info');
+            statusDiv.textContent = 'Estado: CONECTANDO...';
+            statusDiv.className = 'connecting';
+            await WebSocketService.connect();
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnDisconnect'), 'click', () => {
+            log('🔌 Desconectando manualmente...', 'info');
+            WebSocketService.disconnect();
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnSendPing'), 'click', () => {
+            const sent = WebSocketService.send({
+                type: 'ping',
+                timestamp: new Date().toISOString()
+            });
+            if (sent) {
+                log('📤 Ping enviado', 'success');
+            } else {
+                log('❌ No se pudo enviar (no conectado)', 'error');
+            }
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnSendHandshake'), 'click', () => {
+            const sent = WebSocketService.send({
+                type: 'handshake',
+                clientId: 'web-client-test-123',
+                timestamp: new Date().toISOString()
+            });
+            if (sent) {
+                log('🤝 Handshake enviado', 'success');
+            } else {
+                log('❌ No se pudo enviar (no conectado)', 'error');
+            }
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnCheckState'), 'click', () => {
+            const state = WebSocketService.getReadyStateString();
+            const isConnected = WebSocketService.isConnected();
+            log(`ℹ️ ReadyState: ${state}, isConnected: ${isConnected}`, 'info');
+            console.log('StateManager WS:', StateManager.isWebSocketConnected());
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnSimulateHandshake'), 'click', () => {
+            // Simular mensaje del backend
+            EventBus.emit('message:handshake_response', {
+                type: 'handshake_response',
+                devices: [
+                    {
+                        id: 'ESP32_001',
+                        mac: 'AA:BB:CC:DD:EE:01',
+                        name: 'Poste Entrada',
+                        location: 'Entrada Principal',
+                        status: 'online',
+                        alarmActive: false,
+                        lastSeen: new Date().toISOString()
+                    },
+                    {
+                        id: 'ESP32_002',
+                        mac: 'AA:BB:CC:DD:EE:02',
+                        name: 'Poste Salida',
+                        location: 'Salida Trasera',
+                        status: 'offline',
+                        alarmActive: false,
+                        lastSeen: new Date(Date.now() - 3600000).toISOString()
+                    },
+                    {
+                        id: 'ESP32_003',
+                        mac: 'AA:BB:CC:DD:EE:03',
+                        name: 'Poste Parque',
+                        location: 'Parque Central',
+                        status: 'online',
+                        alarmActive: true,
+                        lastSeen: new Date().toISOString()
+                    }
+                ],
+                mqttConnected: true,
+                serverTime: new Date().toISOString()
+            });
+            log('🤝 Handshake simulado enviado', 'info');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnSimulateUpdate'), 'click', () => {
+            // Primero asegurar que hay devices en StateManager
+            if (StateManager.getTotalCount() === 0) {
+                log('⚠️ No hay devices. Haz click en "Simular Handshake" primero', 'warning');
+                return;
+            }
+
+            // Simular device_update
+            EventBus.emit('message:device_update', {
+                type: 'device_update',
+                deviceId: 'ESP32_001',
+                status: 'online',
+                lastSeen: new Date().toISOString()
+            });
+            log('📡 Device update simulado (ESP32_001 → online)', 'info');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnCheckDevices'), 'click', () => {
+            const devices = StateManager.getDevices();
+            console.log('Devices en StateManager:', devices);
+            log(`🔍 ${devices.length} devices en memoria (ver consola)`, 'info');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnActivateAlarm'), 'click', () => {
+            if (StateManager.getTotalCount() === 0) {
+                log('⚠️ No hay devices. Haz click en "Simular Handshake" primero', 'warning');
+                return;
+            }
+
+            EventBus.emit('message:device_alarm', {
+                type: 'device_alarm',
+                deviceId: 'ESP32_001',
+                alarmActive: true,
+                timestamp: new Date().toISOString()
+            });
+            log('🚨 Alarma activada simulada (ESP32_001)', 'error');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnDeactivateAlarm'), 'click', () => {
+            EventBus.emit('message:device_alarm', {
+                type: 'device_alarm',
+                deviceId: 'ESP32_001',
+                alarmActive: false,
+                timestamp: new Date().toISOString()
+            });
+            log('✅ Alarma desactivada simulada (ESP32_001)', 'success');
+        });
+
+        DOMHelpers.on(DOMHelpers.select('#btnReconnectStatus'), 'click', () => {
+          const status = ConnectionManager.getReconnectStatus();
+          console.log('Reconnect status:', status);
+          log(`📊 Intentos: ${status.attempts}/${status.maxAttempts}, Reconectando: ${status.isReconnecting}`, 'info');
+        });
+
+        log('✅ Sistema cargado. Haz click en "Conectar"', 'success');
+    </script>
+</body>
+
+</html>
