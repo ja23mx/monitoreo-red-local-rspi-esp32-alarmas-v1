@@ -132,6 +132,95 @@ function deleteEventosAll(dias = 30) {
     return true;
 }
 
+// Obtiene todos los dispositivos formateados para WebSocket
+function getAllDevicesForWS(timeoutMinutes = 5) {
+    const macToId = _readJsonFile(MAC_TO_ID_PATH);
+    const alarmas = _readJsonFile(ALARMAS_PATH);
+    const idToMac = _getIdToMacMap();
+
+    const devices = [];
+
+    for (const [mac, id] of Object.entries(macToId)) {
+        const alarma = alarmas[id];
+        if (!alarma) continue; // Skip si no existe en alarmas.json
+
+        devices.push({
+            id: `ESP32_${String(id).padStart(3, '0')}`, // ESP32_001, ESP32_002
+            mac: mac,
+            name: alarma.nickname || `Dispositivo ${id}`,
+            status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
+            lastSeen: alarma.ult_cnx || null,
+            location: alarma.location || 'Sin ubicación',
+            alarmActive: alarma.alarmActive || false
+        });
+    }
+
+    return devices;
+}
+
+// Obtiene un dispositivo por MAC formateado para WebSocket
+function getDeviceByMac(mac, timeoutMinutes = 5) {
+    const id = _getIdByMac(mac);
+    if (!id) return null;
+
+    const alarmas = _readJsonFile(ALARMAS_PATH);
+    const alarma = alarmas[id];
+    if (!alarma) return null;
+
+    return {
+        id: `ESP32_${String(id).padStart(3, '0')}`,
+        mac: mac,
+        name: alarma.nickname || `Dispositivo ${id}`,
+        status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
+        lastSeen: alarma.ult_cnx || null,
+        location: alarma.location || 'Sin ubicación',
+        alarmActive: alarma.alarmActive || false
+    };
+}
+
+// Actualiza el estado de alarma activa por MAC
+function updateAlarmActiveByMac(mac, isActive) {
+    const id = _getIdByMac(mac);
+    if (!id) return false;
+
+    const alarmas = _readJsonFile(ALARMAS_PATH);
+    if (alarmas[id]) {
+        alarmas[id].alarmActive = isActive;
+
+        if (isActive) {
+            const now = new Date().toISOString();
+            alarmas[id].ult_cnx = now;
+            console.log(`[DB-Repository] Alarma ${id} activada y ult_cnx actualizado: ${now}`);
+        } else {
+            console.log(`[DB-Repository] Alarma ${id} desactivada`);
+        }
+
+        _writeJsonFile(ALARMAS_PATH, alarmas);
+        return true;
+    }
+    return false;
+}
+
+// Helper: Calcula el status basado en última conexión
+function _calculateDeviceStatus(ultimaConexion, thresholdMinutes = 5) {
+    if (!ultimaConexion) return 'offline';
+
+    const now = new Date();
+    const lastSeen = new Date(ultimaConexion);
+    const diffMinutes = (now - lastSeen) / (1000 * 60);
+
+    return diffMinutes <= thresholdMinutes ? 'online' : 'offline';
+}
+
+// Helper: Invierte mac_to_id para obtener MAC por ID
+function _getIdToMacMap() {
+    const macToId = _readJsonFile(MAC_TO_ID_PATH);
+    return Object.entries(macToId).reduce((acc, [mac, id]) => {
+        acc[id] = mac;
+        return acc;
+    }, {});
+}
+
 /**
  * Locales (no exportados)
  */
@@ -169,5 +258,8 @@ module.exports = {
     addEventoByMac,
     getEventosByMac,
     deleteEventosByMac,
-    deleteEventosAll
+    deleteEventosAll,
+    getAllDevicesForWS,
+    getDeviceByMac,
+    updateAlarmActiveByMac
 };
