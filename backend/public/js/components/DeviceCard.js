@@ -208,7 +208,7 @@ class DeviceCard {
         //actions.appendChild(btnReset);
 
         // Botón Audio
-        const btnAudio = this.createActionButton('play_audio', 'Probar', 'btn-audio');
+        const btnAudio = this.createActionButton('play_track', 'Probar', 'btn-audio');
         actions.appendChild(btnAudio);
 
         return actions;
@@ -256,6 +256,10 @@ class DeviceCard {
             command: action,
             timestamp: new Date().toISOString()
         };
+
+        if (action === 'play_track') {
+            command.data = { track: 10 };  
+        }
 
         const sent = WebSocketService.send(command);
 

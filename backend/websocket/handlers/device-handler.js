@@ -205,8 +205,9 @@ class DeviceHandler {
             
             // Construir payload MQTT
             const mqttPayload = {
-                cmd: commandConfig.mqttCmd,
-                timestamp: new Date().toISOString()
+                dsp: deviceMac, 
+                event: commandConfig.mqttCmd,
+                time: new Date().toISOString()
             };
 
             // Agregar datos específicos del comando

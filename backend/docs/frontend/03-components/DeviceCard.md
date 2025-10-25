@@ -9,7 +9,7 @@
 
 ## 📋 Descripción
 
-DeviceCard es el **componente visual de tarjeta** que representa un dispositivo ESP32 individual. Se actualiza en tiempo real según eventos del WebSocket, muestra el estado actual del dispositivo y permite enviar comandos (ping, reset, play_audio). Cada tarjeta es reactiva y se sincroniza automáticamente con el estado global.
+DeviceCard es el **componente visual de tarjeta** que representa un dispositivo ESP32 individual. Se actualiza en tiempo real según eventos del WebSocket, muestra el estado actual del dispositivo y permite enviar comandos (ping, reset, play_track). Cada tarjeta es reactiva y se sincroniza automáticamente con el estado global.
 
 ### Características principales:
 - ✅ **Component pattern**: Encapsulación completa de lógica y vista
@@ -70,7 +70,7 @@ DeviceCard (Component)
   <div class="device-actions">
     <button class="btn btn-primary" data-action="ping">📡 Ping</button>
     <button class="btn btn-secondary" data-action="reset">🔄 Reset</button>
-    <button class="btn btn-secondary" data-action="play_audio">🔊 Audio</button>
+    <button class="btn btn-secondary" data-action="play_track">🔊 Audio</button>
   </div>
 </div>
 ```
@@ -239,7 +239,7 @@ container.replaceChild(newElement, oldElement);
   <div class="device-actions">
     <button class="btn btn-primary" data-action="ping">📡 Ping</button>
     <button class="btn btn-secondary" data-action="reset">🔄 Reset</button>
-    <button class="btn btn-secondary" data-action="play_audio">🔊 Audio</button>
+    <button class="btn btn-secondary" data-action="play_track">🔊 Audio</button>
   </div>
 </div>
 ```
@@ -306,10 +306,10 @@ card.update();
 ---
 
 ### `handleAction(action)`
-Maneja el clic en botones de acción (ping, reset, play_audio).
+Maneja el clic en botones de acción (ping, reset, play_track).
 
 **Parámetros:**
-- `action` (string, requerido): Comando a enviar - `'ping'` | `'reset'` | `'play_audio'`
+- `action` (string, requerido): Comando a enviar - `'ping'` | `'reset'` | `'play_track'`
 
 **Retorna:** `void`
 
@@ -375,7 +375,7 @@ card.handleAction('reset');
 ```javascript
 'ping'       // Enviar ping al device (verificar conectividad)
 'reset'      // Reiniciar device (ESP.restart())
-'play_audio' // Reproducir audio en buzzer/speaker
+'play_track' // Reproducir audio en buzzer/speaker
 ```
 
 ---
