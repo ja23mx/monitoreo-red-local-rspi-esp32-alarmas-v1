@@ -8,6 +8,7 @@ const path = require('path');
 const WEBSOCKET_CONFIG = require('../config/websocket-config');
 const ResponseBuilder = require('../utils/response-builder');
 const clientManager = require('../services/client-manager');
+const dbRepository = require('../../../data/db-repository');
 
 class SystemHandler {
     constructor() {
@@ -57,10 +58,10 @@ class SystemHandler {
 
                 /* console.log(`[SystemHandler] Respuesta de handshake enviada a cliente: ${client.id}`);
                 console.log(`handshakeResponse: ${JSON.stringify(handshakeResponse)}`); */
-                
+
                 // Actualizar estado del cliente a READY
                 clientManager.updateClientState(client.id, WEBSOCKET_CONFIG.CONNECTION_STATES.READY);
-                
+
                 console.log(`[SystemHandler] ✅ Handshake completado para cliente: ${client.id}`);
                 return true;
             }
@@ -69,17 +70,17 @@ class SystemHandler {
 
         } catch (error) {
             console.error('[SystemHandler] Error en handshake:', error);
-            
+
             // Enviar respuesta de error
             const errorResponse = ResponseBuilder.buildErrorResponse(
                 WEBSOCKET_CONFIG.ERROR_CODES.INTERNAL_ERROR,
                 `Error en handshake: ${error.message}`
             );
-            
+
             if (ws.readyState === 1) {
                 ws.send(JSON.stringify(errorResponse));
             }
-            
+
             return false;
         }
     }
@@ -102,7 +103,7 @@ class SystemHandler {
             };
 
             console.log(`[SystemHandler] Cliente actualizado: ${client.id}`);
-            
+
         } catch (error) {
             console.error('[SystemHandler] Error actualizando cliente:', error);
             throw error;
@@ -151,37 +152,21 @@ class SystemHandler {
      */
     async loadDevicesState() {
         try {
-            // Intentar cargar desde diferentes fuentes de datos
-            const deviceSources = [
-                'device_status.json'
-            ];
+            // usar db-repository
+            const devices = dbRepository.getAllDevicesForWS(5); // 5 min threshold
 
-            let devices = [];
-
-            for (const source of deviceSources) {
-                try {
-                    const filePath = path.join(this.dataPath, source);
-                    const fileContent = await fs.readFile(filePath, 'utf8');
-                    const data = JSON.parse(fileContent);
-                    
-                    if (Array.isArray(data)) {
-                        devices = devices.concat(data);
-                    } else if (data.devices) {
-                        devices = devices.concat(data.devices);
-                    }
-                    
-                } catch (fileError) {
-                    // Archivo no existe o error leyendo - continuar con el siguiente
-                    console.warn(`[SystemHandler] No se pudo cargar ${source}:`, fileError.message);
-                }
+            if (devices.length > 0) {
+                console.log(`[SystemHandler] ✅ Cargados ${devices.length} dispositivos desde db-repository`);
+                return devices;
             }
 
-            // Si no hay dispositivos en archivos, crear lista por defecto basada en mac_to_id
-            if (devices.length === 0) {
-                devices = await this.createDefaultDevicesList();
-            }
+            // ⚠️ FALLBACK: Intentar cargar desde device_status.json
+            console.warn('[SystemHandler] ⚠️ db-repository vacío, usando fallback device_status.json');
+            const filePath = path.join(this.dataPath, 'device_status.json');
+            const fileContent = await fs.readFile(filePath, 'utf8');
+            const data = JSON.parse(fileContent);
 
-            return devices;
+            return Array.isArray(data) ? data : (data.devices || []);
 
         } catch (error) {
             console.error('[SystemHandler] Error cargando dispositivos:', error);
@@ -230,8 +215,8 @@ class SystemHandler {
         try {
             const enrichedDevices = devices.map(device => {
                 // Buscar alarmas relacionadas con este dispositivo
-                const deviceAlarms = alarms.filter(alarm => 
-                    alarm.mac === device.mac || 
+                const deviceAlarms = alarms.filter(alarm =>
+                    alarm.mac === device.mac ||
                     alarm.deviceId === device.id ||
                     alarm.id === device.id
                 );
@@ -271,7 +256,7 @@ class SystemHandler {
     async createDefaultDevicesList() {
         try {
             const macToId = await this.loadMacToId();
-            
+
             return Object.entries(macToId).map(([mac, id]) => ({
                 id,
                 mac,
@@ -309,7 +294,7 @@ class SystemHandler {
             };
 
             const response = ResponseBuilder.buildSystemInfoResponse(systemData);
-            
+
             if (ws.readyState === 1) {
                 ws.send(JSON.stringify(response));
                 return true;
@@ -319,16 +304,16 @@ class SystemHandler {
 
         } catch (error) {
             console.error('[SystemHandler] Error obteniendo info del sistema:', error);
-            
+
             const errorResponse = ResponseBuilder.buildErrorResponse(
                 WEBSOCKET_CONFIG.ERROR_CODES.INTERNAL_ERROR,
                 `Error obteniendo información: ${error.message}`
             );
-            
+
             if (ws.readyState === 1) {
                 ws.send(JSON.stringify(errorResponse));
             }
-            
+
             return false;
         }
     }

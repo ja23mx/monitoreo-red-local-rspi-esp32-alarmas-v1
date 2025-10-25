@@ -11,7 +11,7 @@
         "id": "alarm_002",
         "deviceId": "ESP32_002",
         "mac": "77:FB:6C",
-        "active": true,
+        "active": false,
         "timestamp": "2025-09-18T11:30:00.000Z",
         "type": "button_panic"
     }

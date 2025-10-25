@@ -1,12 +1,16 @@
 {
   "1": {
     "id": 1,
-    "ult_cnx": "2025-10-22T17:55:33Z",
-    "nickname": "ALARMA X"
+    "ult_cnx": "2025-10-25T05:23:33Z",
+    "nickname": "ALARMA X",
+    "location": "Entrada Principal",
+    "alarmActive": true
   },
   "2": {
     "id": 2,
     "ult_cnx": "2025-10-03T03:44:55Z",
-    "nickname": "ALARMA Y"
+    "nickname": "ALARMA Y",
+    "location": "Parque Central",
+    "alarmActive": true
   }
 }

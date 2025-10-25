@@ -38,16 +38,33 @@ class MessageRouter {
             EventBus.emit('message:handshake_response', message);
         });
 
-        // Device update
-        this.register('device_update', (message) => {
-            console.log('[MessageRouter] 📡 Device update recibido:', message.deviceId);
-            EventBus.emit('message:device_update', message);
-        });
+        // Notification handler - Procesa eventos MQTT (heartbeat y button_pressed)
+        this.register('notification', (message) => {
+            // Validar estructura del mensaje
+            if (!message.event) {
+                console.error('[MessageRouter] ❌ Notification sin campo "event":', message);
+                return;
+            }
 
-        // Device alarm
-        this.register('device_alarm', (message) => {
-            console.log('[MessageRouter] 🚨 Device alarm recibido:', message.deviceId);
-            EventBus.emit('message:device_alarm', message);
+            if (!message.data) {
+                console.warn('[MessageRouter] ⚠️ Notification sin datos:', message);
+            }
+
+            // Log del evento recibido
+            console.log(`[MessageRouter] 📢 Notification: ${message.event}`, message.data?.deviceId || 'N/A');
+
+            // Emitir evento específico en EventBus
+            EventBus.emit(`notification:${message.event}`, message);
+
+            // Emitir también evento genérico (para listeners globales)
+            EventBus.emit('notification', message);
+
+            // Validar que sea un evento soportado
+            const supportedEvents = ['button_pressed', 'heartbeat'];
+            
+            if (!supportedEvents.includes(message.event)) {
+                console.warn(`[MessageRouter] ⚠️ Evento no soportado: ${message.event}`);
+            }
         });
 
         // Pong response
@@ -110,9 +127,9 @@ class MessageRouter {
      * 
      * @example
      * MessageRouter.route({
-     *   type: 'device_update',
-     *   deviceId: 'ESP32_001',
-     *   status: 'online'
+     *   type: 'notification',
+     *   event: 'heartbeat',
+     *   data: { deviceId: 'ESP32_001' }
      * });
      */
     route(message) {

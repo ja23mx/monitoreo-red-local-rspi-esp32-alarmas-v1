@@ -1,6 +1,6 @@
 # MessageRouter - Enrutador de Mensajes WebSocket
 
-**Versión:** v0.2-beta  
+**Versión:** v1.0  
 **Archivo:** `js/services/websocket/MessageRouter.js`  
 **Patrón:** Singleton + Strategy Pattern  
 **Dependencias:** `EventBus.js`
@@ -18,6 +18,7 @@ MessageRouter es el **dispatcher central de mensajes WebSocket**. Recibe todos l
 - ✅ **Error isolation**: Try/catch en cada handler
 - ✅ **Type-safe**: Validación estricta de estructura de mensajes
 - ✅ **Singleton**: Una única instancia global
+- ✅ **Notification routing**: Soporte para eventos MQTT genéricos
 
 ---
 
@@ -27,8 +28,7 @@ MessageRouter es el **dispatcher central de mensajes WebSocket**. Recibe todos l
 MessageRouter (Singleton)
   ├── handlers: Map<string, Function>
   │   ├── 'handshake_response' → handlerFn
-  │   ├── 'device_update' → handlerFn
-  │   ├── 'device_alarm' → handlerFn
+  │   ├── 'notification' → handlerFn (NUEVO v1.0)
   │   ├── 'pong' → handlerFn
   │   ├── 'error' → handlerFn
   │   └── 'command_response' → handlerFn
@@ -47,11 +47,13 @@ handlers.get(message.type)
   ↓
 handler(message)
   ↓
-EventBus.emit(`message:${type}`, message)
+EventBus.emit(`notification:${message.event}`, message)  ← NUEVO
   ↓
-External handlers listen
+DeviceAlarmHandler / DeviceUpdateHandler
   ↓
-Process message
+StateManager.updateDevice()
+  ↓
+DeviceCard.update()
 ```
 
 ---
@@ -62,7 +64,7 @@ Process message
 Registra un handler para un tipo de mensaje específico.
 
 **Parámetros:**
-- `messageType` (string): Tipo de mensaje (ej: 'device_update')
+- `messageType` (string): Tipo de mensaje (ej: 'notification')
 - `handler` (Function): Función que procesa el mensaje
 
 **Retorna:** `void`
@@ -82,21 +84,18 @@ MessageRouter.register('custom_event', (message) => {
 });
 ```
 
-**Ejemplo avanzado:**
+**Ejemplo con notificación:**
 ```javascript
-// Handler con validación
-MessageRouter.register('device_status', (message) => {
+// Handler para notificaciones MQTT
+MessageRouter.register('notification', (message) => {
   // Validar estructura
-  if (!message.deviceId || !message.status) {
-    console.error('Mensaje device_status inválido:', message);
+  if (!message.event) {
+    console.error('Notification sin campo event');
     return;
   }
   
-  // Procesar
-  console.log(`Device ${message.deviceId}: ${message.status}`);
-  
-  // Emitir evento
-  EventBus.emit('message:device_status', message);
+  // Emitir evento específico
+  EventBus.emit(`notification:${message.event}`, message);
 });
 ```
 
@@ -125,14 +124,6 @@ MessageRouter.unregister('temp_event');
 // Ahora mensajes 'temp_event' se ignoran
 ```
 
-**Uso en testing:**
-```javascript
-afterEach(() => {
-  // Limpiar handlers de test
-  MessageRouter.unregister('test_event');
-});
-```
-
 ---
 
 ### `route(message)`
@@ -153,45 +144,16 @@ Enruta un mensaje al handler correspondiente (entry point principal).
 3. Si existe handler, lo ejecuta con try/catch
 4. Si no existe handler, muestra warning
 
-**Ejemplo de mensaje válido:**
+**Ejemplo de mensaje de notificación:**
 ```javascript
 {
-  type: 'device_update',
-  deviceId: 'ESP32_001',
+  type: 'notification',
+  event: 'button_pressed',  // ← Campo específico del evento
+  timestamp: '2025-10-25T05:12:50.426Z',
   data: {
-    status: 'online',
-    lastSeen: '2025-10-23T14:30:00.000Z'
-  }
-}
-```
-
-**Flujo interno:**
-```javascript
-route(message) {
-  // 1. Validar
-  if (!message || typeof message !== 'object') {
-    console.error('Mensaje inválido');
-    return;
-  }
-  
-  if (!message.type) {
-    console.error('Mensaje sin tipo');
-    return;
-  }
-  
-  // 2. Buscar handler
-  const handler = this.handlers.get(message.type);
-  
-  if (!handler) {
-    console.warn(`Sin handler para: ${message.type}`);
-    return;
-  }
-  
-  // 3. Ejecutar con try/catch
-  try {
-    handler(message);
-  } catch (error) {
-    console.error(`Error en handler '${message.type}':`, error);
+    deviceId: 'ESP32_001',
+    buttonName: 'BOTON_PANICO',
+    alarmState: 'activated'
   }
 }
 ```
@@ -210,22 +172,7 @@ Obtiene lista de todos los tipos de mensajes registrados.
 ```javascript
 const types = MessageRouter.getRegisteredTypes();
 console.log('Handlers registrados:', types);
-// Output: ['handshake_response', 'device_update', 'device_alarm', ...]
-```
-
-**Uso en debugging:**
-```javascript
-// Verificar que handlers estén cargados
-function checkHandlers() {
-  const expected = ['handshake_response', 'device_update', 'device_alarm'];
-  const registered = MessageRouter.getRegisteredTypes();
-  
-  expected.forEach(type => {
-    if (!registered.includes(type)) {
-      console.error(`❌ Handler faltante: ${type}`);
-    }
-  });
-}
+// Output: ['handshake_response', 'notification', 'pong', 'error', 'command_response']
 ```
 
 ---
@@ -240,24 +187,10 @@ Verifica si existe un handler para un tipo de mensaje.
 
 **Ejemplo:**
 ```javascript
-if (MessageRouter.isRegistered('device_alarm')) {
-  console.log('✅ Handler de alarmas disponible');
+if (MessageRouter.isRegistered('notification')) {
+  console.log('✅ Handler de notificaciones disponible');
 } else {
-  console.warn('⚠️ Handler de alarmas no registrado');
-}
-```
-
-**Uso en validación:**
-```javascript
-// Antes de enviar mensaje, verificar que el backend soporte la respuesta
-function sendCommand(command) {
-  const responseType = `${command}_response`;
-  
-  if (!MessageRouter.isRegistered(responseType)) {
-    console.warn(`No hay handler para respuesta de '${command}'`);
-  }
-  
-  WebSocketService.send({ type: command });
+  console.warn('⚠️ Handler de notificaciones no registrado');
 }
 ```
 
@@ -279,6 +212,7 @@ Respuesta del handshake inicial.
 **Handler:**
 ```javascript
 (message) => {
+  console.log('[MessageRouter] 🤝 Handshake response recibido');
   EventBus.emit('message:handshake_response', message);
 }
 ```
@@ -287,121 +221,161 @@ Respuesta del handshake inicial.
 ```javascript
 {
   type: 'handshake_response',
-  devices: [
-    {
-      id: 'ESP32_001',
-      mac: 'AA:BB:CC:DD:EE:FF',
-      nombre: 'Alarma 1',
-      ubicacion: 'Entrada',
-      status: 'online',
-      // ... más propiedades
-    }
-  ],
-  mqttConnected: true,
-  serverTime: '2025-10-23T14:30:00.000Z',
-  clientId: 'web-client-1729701234567'
-}
-```
-
-**Listener externo:**
-```javascript
-// HandshakeHandler.js
-EventBus.on('message:handshake_response', (data) => {
-  StateManager.setDevices(data.devices);
-  StateManager.setMQTTConnected(data.mqttConnected);
-  StateManager.setServerTime(data.serverTime);
-  EventBus.emit('handshake:completed', data);
-});
-```
-
----
-
-### 2. `device_update`
-Actualización de estado de un dispositivo.
-
-**Handler:**
-```javascript
-(message) => {
-  EventBus.emit('message:device_update', message);
-}
-```
-
-**Payload esperado:**
-```javascript
-{
-  type: 'device_update',
-  deviceId: 'ESP32_001',
+  timestamp: '2025-10-25T05:12:12.492Z',
+  success: true,
   data: {
-    status: 'online',
-    lastSeen: '2025-10-23T14:35:00.000Z',
-    rssi: -65,
-    uptime: 3600000
+    devices: [
+      {
+        id: 'ESP32_001',
+        mac: '77FF44',
+        name: 'ALARMA X',
+        location: 'Entrada Principal',
+        status: 'online',
+        lastSeen: '2025-10-25T05:12:12.492Z',
+        alarmActive: false
+      }
+    ],
+    mqttConnected: true,
+    serverVersion: '1.0.0',
+    uptime: '9s',
+    connectedClients: 1
   }
 }
 ```
 
-**Listener externo:**
-```javascript
-// DeviceUpdateHandler.js
-EventBus.on('message:device_update', ({ deviceId, data }) => {
-  StateManager.updateDevice(deviceId, data);
-  EventBus.emit('device:update', { deviceId, ...data });
-});
-```
+**Procesado por:** `HandshakeHandler.js`
 
 ---
 
-### 3. `device_alarm`
-Notificación de alarma activada.
+### 2. `notification` ⭐ **NUEVO v1.0**
+Notificaciones genéricas de eventos MQTT.
 
 **Handler:**
 ```javascript
 (message) => {
-  EventBus.emit('message:device_alarm', message);
-}
-```
+  // Validar estructura
+  if (!message.event) {
+    console.error('[MessageRouter] ❌ Notification sin campo "event":', message);
+    return;
+  }
 
-**Payload esperado:**
-```javascript
-{
-  type: 'device_alarm',
-  deviceId: 'ESP32_001',
-  alarmType: 'button',  // 'button' | 'sensor' | 'manual'
-  timestamp: '2025-10-23T14:40:00.000Z',
-  data: {
-    location: 'Entrada',
-    severity: 'high'
+  if (!message.data) {
+    console.warn('[MessageRouter] ⚠️ Notification sin datos:', message);
+  }
+
+  // Log del evento
+  console.log(`[MessageRouter] 📢 Notification: ${message.event}`, message.data?.deviceId || 'N/A');
+
+  // Emitir evento específico
+  EventBus.emit(`notification:${message.event}`, message);
+
+  // Emitir evento genérico (para listeners globales)
+  EventBus.emit('notification', message);
+
+  // Validar que sea un evento soportado
+  const supportedEvents = ['button_pressed', 'heartbeat'];
+  
+  if (!supportedEvents.includes(message.event)) {
+    console.warn(`[MessageRouter] ⚠️ Evento no soportado: ${message.event}`);
   }
 }
 ```
 
-**Listener externo:**
+**Eventos soportados:**
+#### **2.1. `notification:button_pressed`**
+Botón de pánico presionado.
+
+**Payload:**
 ```javascript
-// DeviceAlarmHandler.js
-EventBus.on('message:device_alarm', ({ deviceId, alarmType, timestamp }) => {
-  // Actualizar estado
-  StateManager.updateDevice(deviceId, {
-    alarmActive: true,
-    alarmType,
-    alarmTimestamp: timestamp
-  });
-  
-  // Notificar UI
-  Toast.error(`¡ALARMA! ${deviceId} - ${alarmType}`);
-  
-  // Emitir evento procesado
-  EventBus.emit('device:alarm', { deviceId, alarmType });
-});
+{
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X',
+    buttonName: 'BOTON_PANICO',
+    buttonKey: 'BOTON_PANICO',
+    alarmState: 'activated'  // 'activated' | 'deactivated'
+  }
+}
+```
+
+**Procesado por:** `DeviceAlarmHandler.js`
+
+**Emite en EventBus:**
+- `notification:button_pressed` (evento específico)
+- `notification` (evento genérico)
+
+**Flujo completo:**
+```
+Backend MQTT → WebSocket → MessageRouter
+  ↓
+EventBus.emit('notification:button_pressed', message)
+  ↓
+DeviceAlarmHandler.handleButtonPressed()
+  ↓
+StateManager.updateDevice(deviceId, { alarmActive: true })
+  ↓
+EventBus.emit('device:alarm:changed', { deviceId, alarmActive: true })
+  ↓
+DeviceCard.updateAlarmIndicator(true)
+  ↓
+UI muestra: "🚨 ALARMA ACTIVA"
 ```
 
 ---
 
-### 4. `pong`
+#### **2.2. `notification:heartbeat`**
+Latido del dispositivo (cada 30s).
+
+**Payload:**
+```javascript
+{
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X'
+  }
+}
+```
+
+**Procesado por:** `DeviceUpdateHandler.js`
+
+**Emite en EventBus:**
+- `notification:heartbeat` (evento específico)
+- `notification` (evento genérico)
+
+**Flujo completo:**
+```
+Backend MQTT → WebSocket → MessageRouter
+  ↓
+EventBus.emit('notification:heartbeat', message)
+  ↓
+DeviceUpdateHandler.handle()
+  ↓
+StateManager.updateDevice(deviceId, { status: 'online', lastSeen: timestamp })
+  ↓
+EventBus.emit('state:devices:changed')
+  ↓
+DeviceCard.update()
+  ↓
+UI actualiza: "Visto: hace 2 segundos"
+```
+
+---
+
+### 3. `pong`
 Respuesta al ping (keep-alive).
 
 **Handler:**
 ```javascript
 (message) => {
+  console.log('[MessageRouter] 🏓 Pong recibido');
   EventBus.emit('message:pong', message);
 }
 ```
@@ -410,31 +384,20 @@ Respuesta al ping (keep-alive).
 ```javascript
 {
   type: 'pong',
-  timestamp: '2025-10-23T14:30:05.000Z',
-  serverTime: '2025-10-23T14:30:05.100Z'
+  timestamp: '2025-10-25T05:12:42.493Z',
+  originalTimestamp: '2025-10-25T05:12:43.506Z'
 }
-```
-
-**Listener externo:**
-```javascript
-// (Opcional) Calcular latencia
-EventBus.on('message:pong', ({ timestamp, serverTime }) => {
-  const sent = new Date(timestamp).getTime();
-  const received = new Date().getTime();
-  const latency = received - sent;
-  
-  console.log(`Latencia: ${latency}ms`);
-});
 ```
 
 ---
 
-### 5. `error`
+### 4. `error`
 Error reportado por el servidor.
 
 **Handler:**
 ```javascript
 (message) => {
+  console.error('[MessageRouter] ❌ Error recibido:', message.message);
   EventBus.emit('message:error', message);
 }
 ```
@@ -445,30 +408,19 @@ Error reportado por el servidor.
   type: 'error',
   code: 'DEVICE_NOT_FOUND',
   message: 'Device ESP32_099 no encontrado',
-  details: {
-    deviceId: 'ESP32_099',
-    requestType: 'device_command'
-  }
+  timestamp: '2025-10-25T05:15:00.000Z'
 }
-```
-
-**Listener externo:**
-```javascript
-// App.js o error handler
-EventBus.on('message:error', ({ code, message, details }) => {
-  console.error(`Error ${code}: ${message}`, details);
-  Toast.error(message);
-});
 ```
 
 ---
 
-### 6. `command_response`
+### 5. `command_response`
 Respuesta a un comando enviado al dispositivo.
 
 **Handler:**
 ```javascript
 (message) => {
+  console.log('[MessageRouter] ✅ Command response:', message.command);
   EventBus.emit('message:command_response', message);
 }
 ```
@@ -478,254 +430,133 @@ Respuesta a un comando enviado al dispositivo.
 {
   type: 'command_response',
   deviceId: 'ESP32_001',
-  command: 'test_alarm',
+  command: 'ping',
   success: true,
-  timestamp: '2025-10-23T14:45:00.000Z',
-  data: {
-    duration: 5000,
-    acknowledged: true
-  }
+  timestamp: '2025-10-25T05:15:30.000Z'
 }
-```
-
-**Listener externo:**
-```javascript
-// DeviceCard.js
-EventBus.on('message:command_response', ({ deviceId, command, success }) => {
-  if (success) {
-    Toast.success(`Comando '${command}' ejecutado en ${deviceId}`);
-  } else {
-    Toast.error(`Comando '${command}' falló en ${deviceId}`);
-  }
-});
 ```
 
 ---
 
 ## 🔥 Eventos Emitidos
 
-| Tipo de Mensaje      | Evento Emitido               | Payload                                    |
-| -------------------- | ---------------------------- | ------------------------------------------ |
-| `handshake_response` | `message:handshake_response` | `Object` (devices, mqttStatus, serverTime) |
-| `device_update`      | `message:device_update`      | `Object` (deviceId, data)                  |
-| `device_alarm`       | `message:device_alarm`       | `Object` (deviceId, alarmType, timestamp)  |
-| `pong`               | `message:pong`               | `Object` (timestamp, serverTime)           |
-| `error`              | `message:error`              | `Object` (code, message, details)          |
-| `command_response`   | `message:command_response`   | `Object` (deviceId, command, success)      |
+| Tipo de Mensaje      | Evento Principal                     | Eventos Secundarios                        | Handler Procesador       |
+| -------------------- | ------------------------------------ | ------------------------------------------ | ------------------------ |
+| `handshake_response` | `message:handshake_response`         | -                                          | `HandshakeHandler`       |
+| `notification`       | `notification:${message.event}`      | `notification` (genérico)                  | Ver tabla abajo          |
+| `pong`               | `message:pong`                       | -                                          | `ConnectionManager`      |
+| `error`              | `message:error`                      | -                                          | -                        |
+| `command_response`   | `message:command_response`           | -                                          | -                        |
 
-**Convención de nombres:**
-```
-message:{type}
+### Eventos de notificación específicos:
 
-Ejemplos:
-- message:handshake_response
-- message:device_update
-- message:device_alarm
-```
+| Evento Backend       | Evento Emitido EventBus       | Handler Procesador     | Actualiza StateManager |
+| -------------------- | ----------------------------- | ---------------------- | ---------------------- |
+| `button_pressed`     | `notification:button_pressed` | `DeviceAlarmHandler`   | ✅ `alarmActive`       |
+| `heartbeat`          | `notification:heartbeat`      | `DeviceUpdateHandler`  | ✅ `status`, `lastSeen`|
 
 ---
 
 ## 🧪 Testing
 
-### Test: Registrar handler
+### Test: Notificación de botón presionado
 ```javascript
-import MessageRouter from './services/websocket/MessageRouter.js';
-
-let called = false;
-
-MessageRouter.register('test_type', (msg) => {
-  called = true;
-  console.log('Handler ejecutado:', msg);
-});
-
-// Verificar registro
-console.assert(MessageRouter.isRegistered('test_type') === true);
+const testMessage = {
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    buttonName: 'BOTON_PANICO',
+    alarmState: 'activated'
+  }
+};
 
 // Simular mensaje
-MessageRouter.route({ type: 'test_type', data: 'test' });
+MessageRouter.route(testMessage);
 
-// Verificar ejecución
-console.assert(called === true);
-```
-
----
-
-### Test: Handler con error no rompe el sistema
-```javascript
-MessageRouter.register('error_test', (msg) => {
-  throw new Error('Error intencional');
+// Verificar evento emitido
+EventBus.on('notification:button_pressed', (message) => {
+  console.assert(message.data.deviceId === 'ESP32_001');
+  console.assert(message.data.alarmState === 'activated');
+  console.log('✅ Test passed: button_pressed');
 });
-
-// No debe lanzar error
-MessageRouter.route({ type: 'error_test' });
-
-console.log('✅ Error capturado correctamente');
 ```
 
----
-
-### Test: Mensaje sin tipo
+### Test: Notificación de heartbeat
 ```javascript
-// Debe mostrar error pero no crashear
-MessageRouter.route({ data: 'sin tipo' });
-
-console.log('✅ Mensaje inválido manejado');
-```
-
----
-
-### Test: Tipo sin handler
-```javascript
-// Debe mostrar warning
-MessageRouter.route({ type: 'tipo_inexistente' });
-
-console.log('✅ Warning mostrado correctamente');
-```
-
----
-
-### Test: Desregistrar handler
-```javascript
-MessageRouter.register('temp', () => console.log('test'));
-console.assert(MessageRouter.isRegistered('temp') === true);
-
-MessageRouter.unregister('temp');
-console.assert(MessageRouter.isRegistered('temp') === false);
-```
-
----
-
-## 📊 Casos de Uso Reales
-
-### 1. Extensión con nuevo tipo de mensaje
-```javascript
-// custom-handlers.js
-import MessageRouter from './services/websocket/MessageRouter.js';
-import EventBus from './core/EventBus.js';
-import Toast from './components/ui/Toast.js';
-
-// Registrar handler para mensajes del tipo 'system_notification'
-MessageRouter.register('system_notification', (message) => {
-  const { title, body, severity } = message;
-  
-  // Emitir evento
-  EventBus.emit('message:system_notification', message);
-  
-  // Mostrar toast según severidad
-  switch (severity) {
-    case 'info':
-      Toast.info(`${title}: ${body}`);
-      break;
-    case 'warning':
-      Toast.warning(`${title}: ${body}`);
-      break;
-    case 'error':
-      Toast.error(`${title}: ${body}`);
-      break;
+const testMessage = {
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001'
   }
+};
+
+MessageRouter.route(testMessage);
+
+EventBus.on('notification:heartbeat', (message) => {
+  console.assert(message.data.deviceId === 'ESP32_001');
+  console.log('✅ Test passed: heartbeat');
 });
 ```
 
 ---
 
-### 2. Logger de todos los mensajes
-```javascript
-// message-logger.js
-import MessageRouter from './services/websocket/MessageRouter.js';
+## 📊 Logs Esperados
 
-class MessageLogger {
-  constructor() {
-    this.logs = [];
-    this.interceptAllMessages();
-  }
-  
-  interceptAllMessages() {
-    const types = MessageRouter.getRegisteredTypes();
-    
-    types.forEach(type => {
-      EventBus.on(`message:${type}`, (message) => {
-        this.log(type, message);
-      });
-    });
-  }
-  
-  log(type, message) {
-    const entry = {
-      timestamp: new Date().toISOString(),
-      type,
-      message
-    };
-    
-    this.logs.push(entry);
-    console.log(`📨 [${type}]`, message);
-  }
-  
-  getLogs() {
-    return this.logs;
-  }
-  
-  clear() {
-    this.logs = [];
-  }
-}
+### Handshake:
+```
+[MessageRouter] 🤝 Handshake response recibido
+[HandshakeHandler] 🤝 Procesando handshake response...
+[HandshakeHandler] 2 dispositivos cargados
+```
 
-// Uso
-const logger = new MessageLogger();
-window.getMessageLogs = () => logger.getLogs();
+### Heartbeat:
+```
+[MessageRouter] 📢 Notification: heartbeat ESP32_001
+[DeviceUpdateHandler] 💓 Heartbeat de "ESP32_001" - lastSeen: 2025-10-25T05:12:33.766Z
+```
+
+### Botón presionado:
+```
+[MessageRouter] 📢 Notification: button_pressed ESP32_001
+[DeviceAlarmHandler] 🚨 Botón "BOTON_PANICO" presionado en "ESP32_001"
+[Toast] 🚨 ALARMA ACTIVADA: ALARMA X (BOTON_PANICO)
 ```
 
 ---
 
-### 3. Validador de mensajes
+## 🚨 Errores Comunes
+
+### ❌ Error: "Notification sin campo event"
 ```javascript
-// message-validator.js
-import MessageRouter from './services/websocket/MessageRouter.js';
-
-const schemas = {
-  device_update: {
-    required: ['deviceId', 'data'],
-    dataRequired: ['status']
-  },
-  device_alarm: {
-    required: ['deviceId', 'alarmType', 'timestamp']
-  }
-};
-
-function validateMessage(message) {
-  const schema = schemas[message.type];
-  
-  if (!schema) return true; // Sin validación
-  
-  // Validar campos requeridos
-  for (const field of schema.required) {
-    if (!(field in message)) {
-      console.error(`Campo faltante '${field}' en mensaje:`, message);
-      return false;
-    }
-  }
-  
-  // Validar campos nested
-  if (schema.dataRequired && message.data) {
-    for (const field of schema.dataRequired) {
-      if (!(field in message.data)) {
-        console.error(`Campo faltante 'data.${field}' en mensaje:`, message);
-        return false;
-      }
-    }
-  }
-  
-  return true;
+// ❌ MAL
+{
+  type: 'notification',
+  data: { deviceId: 'ESP32_001' }
 }
 
-// Interceptar route() original
-const originalRoute = MessageRouter.route.bind(MessageRouter);
-MessageRouter.route = function(message) {
-  if (validateMessage(message)) {
-    originalRoute(message);
-  } else {
-    console.error('❌ Mensaje inválido ignorado:', message);
-  }
-};
+// ✅ BIEN
+{
+  type: 'notification',
+  event: 'heartbeat',  // ← Campo requerido
+  data: { deviceId: 'ESP32_001' }
+}
+```
+
+### ❌ Warning: "Evento no soportado"
+```javascript
+// Backend envía evento no reconocido
+{
+  type: 'notification',
+  event: 'unknown_event',  // ← No está en supportedEvents
+  data: {}
+}
+
+// Console output:
+// [MessageRouter] ⚠️ Evento no soportado: unknown_event
 ```
 
 ---
@@ -734,137 +565,41 @@ MessageRouter.route = function(message) {
 
 ### Mediciones (Chrome DevTools):
 - **route():** < 0.1ms (lookup en Map)
-- **handler execution:** < 0.5ms (promedio)
+- **notification handler:** < 0.2ms
 - **EventBus.emit():** < 0.1ms
-- **Total per message:** < 1ms
-
-### Optimizaciones:
-- Uso de `Map` para handlers (O(1) lookup)
-- Try/catch solo en handler, no en validación
-- No clona mensajes (pasa referencia)
-
----
-
-## 🚨 Errores Comunes
-
-### ❌ Error: "Mensaje debe ser un objeto"
-```javascript
-// ❌ MAL
-MessageRouter.route('string');
-
-// ✅ BIEN
-MessageRouter.route({ type: 'test' });
-```
-
----
-
-### ❌ Warning: "Sin handler para tipo..."
-```javascript
-// Backend envía mensaje no soportado
-{
-  type: 'nuevo_tipo',
-  data: '...'
-}
-
-// Solución: Registrar handler
-MessageRouter.register('nuevo_tipo', (msg) => {
-  console.log('Nuevo tipo recibido:', msg);
-});
-```
-
----
-
-### ❌ Error en handler no manejado
-```javascript
-// ❌ MAL - Handler sin try/catch
-MessageRouter.register('risky', (msg) => {
-  msg.data.campo.nested.profundo; // Puede fallar
-});
-
-// ✅ BIEN - Handler con validación
-MessageRouter.register('risky', (msg) => {
-  if (!msg.data?.campo?.nested) {
-    console.error('Estructura inválida');
-    return;
-  }
-  
-  const value = msg.data.campo.nested.profundo;
-});
-```
-
----
-
-## 🔧 Debugging
-
-### Ver handlers registrados:
-```javascript
-console.log('Handlers:', MessageRouter.getRegisteredTypes());
-```
-
-### Interceptar todos los mensajes:
-```javascript
-const types = MessageRouter.getRegisteredTypes();
-
-types.forEach(type => {
-  EventBus.on(`message:${type}`, (msg) => {
-    console.log(`📨 ${type}:`, msg);
-  });
-});
-```
-
-### Exponer en window:
-```javascript
-window.MessageRouter = MessageRouter;
-
-// En consola:
-MessageRouter.getRegisteredTypes()
-MessageRouter.isRegistered('device_update')
-```
-
----
-
-## 📚 Referencias
-
-### Patrones implementados:
-- **Strategy Pattern:** Handlers intercambiables por tipo
-- **Chain of Responsibility:** Route → Handler → EventBus
-- **Singleton Pattern:** Una única instancia
-
-### Inspiración:
-- Express.js routing
-- Redux action dispatching
-- Command pattern
-
----
-
-## 🎯 Roadmap
-
-### Mejoras futuras:
-- [ ] Schema validation (Zod/Joi)
-- [ ] Middleware chain (pre/post processing)
-- [ ] Handler priorities (orden de ejecución)
-- [ ] Async handlers support
-- [ ] Wildcards (`device:*`)
-- [ ] Message replay (re-procesar mensajes)
-- [ ] Metrics (contador por tipo)
+- **Total per message:** < 0.5ms
 
 ---
 
 ## 📝 Changelog
 
-### v0.2-beta (Actual)
+### v1.0 (2025-10-25)
+- ✅ **BREAKING:** Eliminado handler `device_update`
+- ✅ **BREAKING:** Eliminado handler `device_alarm`
+- ✅ **NUEVO:** Handler `notification` para eventos MQTT genéricos
+- ✅ **NUEVO:** Soporte para `notification:button_pressed`
+- ✅ **NUEVO:** Soporte para `notification:heartbeat`
+- ✅ Arquitectura limpia sin eventos legacy
+- ✅ Validación de eventos soportados
+
+### v0.2-beta
 - ✅ 6 handlers pre-registrados
 - ✅ Strategy pattern para routing
 - ✅ Error isolation en handlers
 - ✅ Event emission automática
-- ✅ API de registro dinámica
 
 ---
 
-**Anterior:** [WebSocketService.md](./WebSocketService.md) - Cliente WebSocket  
-**Siguiente:** [ConnectionManager.md](./ConnectionManager.md) - Gestión de conexión
+## 🔗 Ver También
 
-**Ver también:**
+**Handlers de notificación:**
+- [DeviceAlarmHandler.md](./handlers/DeviceAlarmHandler.md) - Procesa `button_pressed`
+- [DeviceUpdateHandler.md](./handlers/DeviceUpdateHandler.md) - Procesa `heartbeat`
+
+**Sistema base:**
+- [WebSocketService.md](./WebSocketService.md) - Cliente WebSocket
 - [EventBus.md](../01-fundamentos/EventBus.md) - Sistema de eventos
-- [HandshakeHandler.md](./handlers/HandshakeHandler.md) - Handler de handshake
-- [DeviceUpdateHandler.md](./handlers/DeviceUpdateHandler.md) - Handler de updates
+- [StateManager.md](../01-fundamentos/StateManager.md) - Estado global
+
+**Backend:**
+- [notification-broadcaster.md](../../backend/notification-broadcaster.md) - Emisor de notificaciones MQTT

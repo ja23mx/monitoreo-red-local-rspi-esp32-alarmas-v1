@@ -1,6 +1,6 @@
 # DeviceUpdateHandler - Handler de Actualizaciones de Dispositivos
 
-**Versión:** v0.2-beta  
+**Versión:** v1.0  
 **Archivo:** `js/services/websocket/handlers/DeviceUpdateHandler.js`  
 **Patrón:** Singleton + Auto-initialization + Observer  
 **Dependencias:** `EventBus.js`, `StateManager.js`
@@ -9,12 +9,12 @@
 
 ## 📋 Descripción
 
-DeviceUpdateHandler es el **procesador de actualizaciones periódicas de estado** de los dispositivos ESP32. Maneja principalmente heartbeats (señales de vida cada 30 segundos) y cambios de estado silenciosos, sin mostrar notificaciones para evitar spam.
+DeviceUpdateHandler es el **procesador de heartbeats** de los dispositivos ESP32. Actualiza `status` y `lastSeen` cada vez que un dispositivo envía señal de vida (cada 30 segundos), sin mostrar notificaciones para evitar spam.
 
 ### Características principales:
 - ✅ **Auto-initialization**: Se registra automáticamente al importar
 - ✅ **Silent updates**: No muestra Toast (evita spam por heartbeats frecuentes)
-- ✅ **Flexible validation**: Acepta cualquier combinación de campos
+- ✅ **Notification-based**: Escucha `notification:heartbeat` de MessageRouter
 - ✅ **State sync**: Actualiza StateManager automáticamente
 - ✅ **Error isolation**: Try/catch sin notificaciones al usuario
 - ✅ **Device verification**: Verifica existencia antes de actualizar
@@ -27,7 +27,7 @@ DeviceUpdateHandler es el **procesador de actualizaciones periódicas de estado*
 ```javascript
 DeviceUpdateHandler (Singleton)
   ├── constructor()
-  │    └─> EventBus.on('message:device_update', handle)
+  │    └─> EventBus.on('notification:heartbeat', handle)
   ├── handle(message)
   │    ├─> validate()
   │    ├─> StateManager.updateDevice()
@@ -48,62 +48,31 @@ import './services/websocket/handlers/DeviceUpdateHandler.js';
 
 ## 📦 Mensaje Esperado (Backend → Frontend)
 
-### Estructura mínima:
+### Estructura de notificación de heartbeat:
 ```javascript
 {
-  type: 'device_update',
-  deviceId: string,
-  // Al menos UNO de los siguientes:
-  status?: 'online' | 'offline',
-  lastSeen?: string (ISO 8601)
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: string (ISO 8601),
+  data: {
+    deviceId: string,
+    mac: string,
+    deviceName: string
+  }
 }
 ```
 
-### Campos opcionales adicionales:
+### Ejemplo real:
 ```javascript
 {
-  type: 'device_update',
-  deviceId: string,
-  status?: 'online' | 'offline',
-  lastSeen?: string,
-  rssi?: number,              // Señal WiFi (dBm)
-  uptime?: number,            // Segundos desde boot
-  ipAddress?: string,         // IP local
-  firmware?: string,          // Versión firmware
-  // ... cualquier otro campo
-}
-```
-
-### Ejemplo - Heartbeat típico:
-```javascript
-{
-  type: 'device_update',
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
-}
-```
-
-### Ejemplo - Update extendido:
-```javascript
-{
-  type: 'device_update',
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z',
-  rssi: -65,
-  uptime: 3600,
-  ipAddress: '192.168.1.45',
-  firmware: 'v1.2.3'
-}
-```
-
-### Ejemplo - Solo cambio de status:
-```javascript
-{
-  type: 'device_update',
-  deviceId: 'ESP32_001',
-  status: 'offline'
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X'
+  }
 }
 ```
 
@@ -117,7 +86,7 @@ Inicializa el handler y se registra en EventBus (auto-ejecutado).
 **Comportamiento:**
 ```javascript
 constructor() {
-  EventBus.on('message:device_update', this.handle.bind(this));
+  EventBus.on('notification:heartbeat', this.handle.bind(this));
   console.log('[DeviceUpdateHandler] ✅ Handler registrado');
 }
 ```
@@ -132,10 +101,10 @@ constructor() {
 ---
 
 ### `handle(message)`
-Procesa el mensaje de actualización (método principal).
+Procesa el heartbeat y actualiza StateManager (método principal).
 
 **Parámetros:**
-- `message` (Object): Mensaje recibido del servidor
+- `message` (Object): Mensaje de notificación heartbeat
 
 **Retorna:** `void`
 
@@ -149,24 +118,25 @@ handle(message)
   │    ├─> if invalid → console.error + return
   │    └─> if valid → continue
   │
-  ├─> [3] StateManager.getDevice(deviceId)
+  ├─> [3] Extraer deviceId y timestamp
+  │    const { deviceId } = message.data
+  │    const timestamp = message.timestamp
+  │
+  ├─> [4] StateManager.getDevice(deviceId)
   │    ├─> if not found → console.warn + return
   │    └─> if found → device object
   │
-  ├─> [4] Construir objeto updates con campos presentes
-  │    updates = {}
-  │    if (message.status) updates.status = message.status
-  │    if (message.lastSeen) updates.lastSeen = message.lastSeen
-  │    // ... más campos
-  │
-  ├─> [5] StateManager.updateDevice(deviceId, updates)
+  ├─> [5] StateManager.updateDevice(deviceId, {
+  │         status: 'online',
+  │         lastSeen: timestamp
+  │       })
   │    ├─> if failed → console.error + return
   │    └─> if success → continue
   │
-  └─> [6] console.log('📊 Device actualizado: ...')
+  └─> [6] console.log('💓 Heartbeat de "deviceId" - lastSeen: timestamp')
   
   } catch (error) {
-     console.error('[DeviceUpdateHandler] Error inesperado:', error)
+     console.error('[DeviceUpdateHandler] Error al procesar heartbeat:', error)
      // NO muestra Toast al usuario
   }
 ```
@@ -174,30 +144,34 @@ handle(message)
 **Ejemplo de ejecución:**
 
 ```javascript
-// Mensaje recibido del backend (heartbeat)
+// Mensaje recibido del backend
 const message = {
-  type: 'device_update',
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X'
+  }
 };
 
 // Procesamiento interno (automático)
 // 1. Validación ✅
-// 2. Device encontrado: { id: 'ESP32_001', status: 'online', ... }
-// 3. Construir updates:
-const updates = {
+// 2. Device encontrado: { id: 'ESP32_001', status: 'offline', ... }
+// 3. Actualizar StateManager:
+StateManager.updateDevice('ESP32_001', {
   status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
-};
+  lastSeen: '2025-10-25T05:12:33.766Z'
+});
 
-// 4. StateManager actualizado:
-StateManager.updateDevice('ESP32_001', updates);
-// → EventBus.emit('state:devices:changed') (automático por StateManager)
-// → DeviceList re-renderiza (reactividad automática)
+// 4. StateManager emite automáticamente:
+// → EventBus.emit('state:devices:changed')
+// → DeviceList re-renderiza
+// → DeviceCard actualiza "Visto: hace 2 segundos"
 
 // 5. Console log:
-// [DeviceUpdateHandler] 📊 Device "ESP32_001" actualizado: online
+// [DeviceUpdateHandler] 💓 Heartbeat de "ESP32_001" - lastSeen: 2025-10-25T05:12:33.766Z
 
 // 6. NO Toast, NO evento custom
 ```
@@ -205,32 +179,43 @@ StateManager.updateDevice('ESP32_001', updates);
 ---
 
 ### `validate(message)`
-Valida la estructura del mensaje (privado).
+Valida la estructura del mensaje de notificación (privado).
 
 **Parámetros:**
 - `message` (Object): Mensaje a validar
 
 **Retorna:** `boolean` - true si válido, false si inválido
 
-**Validaciones flexibles:**
+**Validaciones:**
 ```javascript
 validate(message) {
   // 1. Debe ser objeto
   if (!message || typeof message !== 'object') {
+    console.warn('[DeviceUpdateHandler] Mensaje no es un objeto');
     return false;
   }
   
-  // 2. deviceId debe ser string no vacío
-  if (!message.deviceId || typeof message.deviceId !== 'string') {
+  // 2. event debe ser 'heartbeat'
+  if (!message.event || message.event !== 'heartbeat') {
+    console.warn('[DeviceUpdateHandler] event debe ser "heartbeat"');
     return false;
   }
   
-  // 3. Al menos UNO de estos campos debe estar presente
-  const hasStatus = 'status' in message;
-  const hasLastSeen = 'lastSeen' in message;
+  // 3. data debe ser objeto
+  if (!message.data || typeof message.data !== 'object') {
+    console.warn('[DeviceUpdateHandler] data inválido');
+    return false;
+  }
   
-  if (!hasStatus && !hasLastSeen) {
-    console.error('[DeviceUpdateHandler] Debe incluir al menos status o lastSeen');
+  // 4. deviceId debe existir en data
+  if (!message.data.deviceId || typeof message.data.deviceId !== 'string') {
+    console.warn('[DeviceUpdateHandler] deviceId inválido');
+    return false;
+  }
+  
+  // 5. timestamp debe ser string
+  if (!message.timestamp || typeof message.timestamp !== 'string') {
+    console.warn('[DeviceUpdateHandler] timestamp inválido');
     return false;
   }
   
@@ -241,69 +226,64 @@ validate(message) {
 **Casos de validación:**
 
 ```javascript
-// ✅ Válido - ambos campos
+// ✅ Válido
 validate({
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44'
+  }
 }); // → true
 
-// ✅ Válido - solo status
+// ❌ Inválido - event incorrecto
 validate({
-  deviceId: 'ESP32_001',
-  status: 'offline'
-}); // → true
-
-// ✅ Válido - solo lastSeen
-validate({
-  deviceId: 'ESP32_001',
-  lastSeen: '2025-10-23T14:30:00.000Z'
-}); // → true
-
-// ✅ Válido - campos extra (se ignoran en validación)
-validate({
-  deviceId: 'ESP32_001',
-  status: 'online',
-  rssi: -65,
-  uptime: 3600
-}); // → true
-
-// ❌ Inválido - falta deviceId
-validate({
-  status: 'online'
+  event: 'button_pressed',  // ← NO es heartbeat
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: { deviceId: 'ESP32_001' }
 }); // → false
 
-// ❌ Inválido - deviceId vacío
+// ❌ Inválido - sin data
 validate({
-  deviceId: '',
-  status: 'online'
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z'
 }); // → false
 
-// ❌ Inválido - sin status ni lastSeen
+// ❌ Inválido - sin deviceId
 validate({
-  deviceId: 'ESP32_001'
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: { mac: '77FF44' }
+}); // → false
+
+// ❌ Inválido - sin timestamp
+validate({
+  event: 'heartbeat',
+  data: { deviceId: 'ESP32_001' }
 }); // → false
 ```
 
 **Console output en errores:**
 ```
 [DeviceUpdateHandler] Mensaje no es un objeto
+[DeviceUpdateHandler] event debe ser "heartbeat"
+[DeviceUpdateHandler] data inválido
 [DeviceUpdateHandler] deviceId inválido
-[DeviceUpdateHandler] Debe incluir al menos status o lastSeen
+[DeviceUpdateHandler] timestamp inválido
 ```
 
 ---
 
 ## 🔥 Eventos
 
-### Evento escuchado: `message:device_update`
-Mensaje enrutado por MessageRouter.
+### Evento escuchado: `notification:heartbeat`
+Notificación de heartbeat enrutada por MessageRouter.
 
-**Emitido por:** MessageRouter (al recibir `{type: 'device_update'}`)
+**Emitido por:** MessageRouter (al recibir `{type: 'notification', event: 'heartbeat'}`)
 
 **Listener:**
 ```javascript
-EventBus.on('message:device_update', this.handle.bind(this));
+EventBus.on('notification:heartbeat', this.handle.bind(this));
 ```
 
 ---
@@ -317,25 +297,26 @@ StateManager.updateDevice(deviceId, updates)
   ↓
 StateManager emite: 'state:devices:changed'
   ↓
-DeviceList escucha y re-renderiza automáticamente
+DeviceCard.update() escucha y actualiza UI
 ```
 
 **Razón del diseño:**
-- Updates son **muy frecuentes** (cada 30s por device)
+- Heartbeats son **muy frecuentes** (cada 30s por device)
 - Emitir evento custom sería **redundante** (StateManager ya lo hace)
 - **Performance**: Evita propagación innecesaria de eventos
 
-**Si necesitas detectar cambios específicos:**
+**Si necesitas detectar heartbeats:**
 ```javascript
-// Escuchar evento de StateManager
+// Opción 1: Escuchar evento de StateManager
 EventBus.on('state:devices:changed', () => {
-  const devices = StateManager.getDevices();
-  // Procesar cambios
+  const device = StateManager.getDevice('ESP32_001');
+  console.log('Last seen:', device.lastSeen);
 });
 
-// O mejor: Usar StateManager con reactividad granular
-const device = StateManager.getDevice('ESP32_001');
-console.log('Última actualización:', device.lastSeen);
+// Opción 2: Interceptar directamente (debugging)
+EventBus.on('notification:heartbeat', (message) => {
+  console.log('Heartbeat recibido:', message.data.deviceId);
+});
 ```
 
 ---
@@ -345,166 +326,139 @@ console.log('Última actualización:', device.lastSeen);
 ```
 [1] ESP32_001 envía heartbeat MQTT cada 30s
   ↓
-[2] ESP32 publica MQTT: devices/ESP32_001/status
+[2] ESP32 publica MQTT: devices/ESP32_001/heartbeat
 {
-  "status": "online",
-  "lastSeen": "2025-10-23T14:30:00.000Z",
-  "rssi": -65
+  "event": "hb",
+  "time": "2025-10-25T04:25:32Z"
 }
   ↓
-[3] Backend Node.js recibe MQTT
+[3] Backend Node.js recibe MQTT (mqtt-handler.js)
   ↓
-[4] Backend envía WebSocket a todos los clientes:
+[4] Backend procesa evento (notification-broadcaster.js)
+  ↓
+[5] Backend envía WebSocket a todos los clientes:
 {
-  "type": "device_update",
-  "deviceId": "ESP32_001",
-  "status": "online",
-  "lastSeen": "2025-10-23T14:30:00.000Z",
-  "rssi": -65
+  "type": "notification",
+  "event": "heartbeat",
+  "timestamp": "2025-10-25T05:12:33.766Z",
+  "data": {
+    "deviceId": "ESP32_001",
+    "mac": "77FF44",
+    "deviceName": "ALARMA X"
+  }
 }
   ↓
-[5] WebSocketService.handleMessage()
+[6] WebSocketService.handleMessage()
   ↓
-[6] MessageRouter.route(message)
+[7] MessageRouter.route(message)
   ↓
-[7] EventBus.emit('message:device_update', message)
+[8] MessageRouter emite: EventBus.emit('notification:heartbeat', message)
   ↓
-[8] DeviceUpdateHandler.handle(message)
+[9] DeviceUpdateHandler.handle(message)
   │
-  ├─> [8.1] validate() ✅
+  ├─> [9.1] validate() ✅
   │
-  ├─> [8.2] StateManager.getDevice('ESP32_001')
-  │         → { id: 'ESP32_001', status: 'online', lastSeen: '...', ... }
+  ├─> [9.2] StateManager.getDevice('ESP32_001')
+  │         → { id: 'ESP32_001', status: 'offline', lastSeen: '...', ... }
   │
-  ├─> [8.3] Construir updates:
-  │         updates = {
+  ├─> [9.3] StateManager.updateDevice('ESP32_001', {
   │           status: 'online',
-  │           lastSeen: '2025-10-23T14:30:00.000Z',
-  │           rssi: -65
-  │         }
-  │
-  ├─> [8.4] StateManager.updateDevice('ESP32_001', updates)
+  │           lastSeen: '2025-10-25T05:12:33.766Z'
+  │         })
   │         ↓
-  │    StateManager._devices['ESP32_001'] = { ...device, ...updates }
+  │    StateManager emite: 'state:devices:changed'
   │         ↓
-  │    EventBus.emit('state:devices:changed')
+  │    [9.3.1] DeviceCard escucha evento
   │         ↓
-  │    [8.4.1] DeviceList escucha evento
+  │    [9.3.2] DeviceCard.update()
   │         ↓
-  │    [8.4.2] DeviceList.renderDevices()
-  │         ↓
-  │    [8.4.3] DeviceCard actualiza badge de status
+  │    [9.3.3] UI actualiza:
   │              - Badge verde "ONLINE"
-  │              - Timestamp "Hace 2 segundos"
-  │              - RSSI bar: -65 dBm (3/4 barras)
+  │              - Timestamp "Visto: hace 2 segundos"
   │
-  └─> [8.5] console.log('[DeviceUpdateHandler] 📊 Device "ESP32_001" actualizado: online')
+  └─> [9.4] console.log('[DeviceUpdateHandler] 💓 Heartbeat de "ESP32_001"...')
 
-[9] NO Toast mostrado (silencioso)
-[10] NO evento custom emitido (usa StateManager)
+[10] NO Toast mostrado (silencioso)
+[11] NO evento custom emitido (usa StateManager)
 
-[11] 30 segundos después: se repite desde [1]
+[12] 30 segundos después: se repite desde [1]
 ```
 
 ---
 
 ## 🧪 Testing
 
-### Test: Mensaje válido con ambos campos
+### Test: Heartbeat válido
 ```javascript
 import DeviceUpdateHandler from './services/websocket/handlers/DeviceUpdateHandler.js';
 import StateManager from './core/StateManager.js';
 import EventBus from './core/EventBus.js';
 
-// Setup: Device en StateManager
+// Setup: Device offline en StateManager
 StateManager.setDevices([
   { id: 'ESP32_001', status: 'offline', lastSeen: null }
 ]);
 
-// Simular mensaje
+// Simular heartbeat
 const message = {
-  type: 'device_update',
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
+  type: 'notification',
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X'
+  }
 };
 
-EventBus.emit('message:device_update', message);
+EventBus.emit('notification:heartbeat', message);
 
 // Verificar
 const device = StateManager.getDevice('ESP32_001');
 console.assert(device.status === 'online', 'status debe ser online');
-console.assert(device.lastSeen === '2025-10-23T14:30:00.000Z', 'lastSeen debe actualizarse');
+console.assert(device.lastSeen === '2025-10-25T05:12:33.766Z', 'lastSeen debe actualizarse');
+console.log('✅ Test passed: heartbeat válido');
 ```
 
 ---
 
-### Test: Mensaje válido solo con status
-```javascript
-const message = {
-  deviceId: 'ESP32_001',
-  status: 'offline'
-};
-
-EventBus.emit('message:device_update', message);
-
-const device = StateManager.getDevice('ESP32_001');
-console.assert(device.status === 'offline', 'status debe ser offline');
-```
-
----
-
-### Test: Mensaje inválido (sin campos requeridos)
-```javascript
-const invalidMessage = {
-  deviceId: 'ESP32_001'
-  // Falta status Y lastSeen
-};
-
-// No debe lanzar error
-EventBus.emit('message:device_update', invalidMessage);
-
-// Console output:
-// [DeviceUpdateHandler] Debe incluir al menos status o lastSeen
-// [DeviceUpdateHandler] Mensaje inválido: {...}
-```
-
----
-
-### Test: Device no existe
+### Test: Heartbeat con device no existente
 ```javascript
 StateManager.setDevices([]);  // Sin devices
 
 const message = {
-  deviceId: 'ESP32_999',  // No existe
-  status: 'online'
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_999'  // No existe
+  }
 };
 
-EventBus.emit('message:device_update', message);
+EventBus.emit('notification:heartbeat', message);
 
 // Console output:
 // [DeviceUpdateHandler] Device "ESP32_999" no encontrado en StateManager
+console.log('✅ Test passed: device no existe');
 ```
 
 ---
 
-### Test: Campos adicionales se procesan
+### Test: Mensaje inválido (sin deviceId)
 ```javascript
-const message = {
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z',
-  rssi: -65,
-  uptime: 3600,
-  customField: 'custom_value'
+const invalidMessage = {
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    mac: '77FF44'  // Falta deviceId
+  }
 };
 
-EventBus.emit('message:device_update', message);
+EventBus.emit('notification:heartbeat', invalidMessage);
 
-const device = StateManager.getDevice('ESP32_001');
-console.assert(device.rssi === -65, 'rssi debe actualizarse');
-console.assert(device.uptime === 3600, 'uptime debe actualizarse');
-console.assert(device.customField === 'custom_value', 'campos custom se aceptan');
+// Console output:
+// [DeviceUpdateHandler] deviceId inválido
+// [DeviceUpdateHandler] Mensaje inválido: {...}
+console.log('✅ Test passed: mensaje inválido');
 ```
 
 ---
@@ -520,14 +474,18 @@ Toast.show = () => {
 };
 
 const message = {
-  deviceId: 'ESP32_001',
-  status: 'online',
-  lastSeen: '2025-10-23T14:30:00.000Z'
+  event: 'heartbeat',
+  timestamp: '2025-10-25T05:12:33.766Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44'
+  }
 };
 
-EventBus.emit('message:device_update', message);
+EventBus.emit('notification:heartbeat', message);
 
 console.assert(toastCalled === false, 'NO debe llamar Toast.show');
+console.log('✅ Test passed: no muestra toast');
 
 // Restore
 Toast.show = originalShow;
@@ -550,7 +508,7 @@ class ConnectionMonitor {
   }
   
   setupListener() {
-    // Escuchar cambios generales de StateManager
+    // Escuchar cambios de StateManager
     EventBus.on('state:devices:changed', () => {
       this.updateConnectionStats();
     });
@@ -559,18 +517,18 @@ class ConnectionMonitor {
   updateConnectionStats() {
     const devices = StateManager.getDevices();
     const online = devices.filter(d => d.status === 'online').length;
-    const offline = devices.filter(d => d.status === 'offline').length;
+    const total = devices.length;
     
     const badge = document.querySelector('#connection-stats');
-    badge.textContent = `${online}/${devices.length} online`;
-    badge.className = online === devices.length ? 'badge-success' : 'badge-warning';
+    badge.textContent = `${online}/${total} online`;
+    badge.className = online === total ? 'badge-success' : 'badge-warning';
   }
   
   checkStaleDevices() {
     setInterval(() => {
       const devices = StateManager.getDevices();
       const now = Date.now();
-      const threshold = 60000; // 60 segundos
+      const threshold = 60000; // 60 segundos sin heartbeat
       
       devices.forEach(device => {
         if (!device.lastSeen) return;
@@ -579,12 +537,16 @@ class ConnectionMonitor {
         const elapsed = now - lastSeenTime;
         
         if (elapsed > threshold && device.status === 'online') {
-          console.warn(`⚠️ Device ${device.id} sin actualizar por ${Math.round(elapsed/1000)}s`);
-          // Opcionalmente marcar como stale
-          StateManager.updateDevice(device.id, { stale: true });
+          console.warn(`⚠️ Device ${device.id} sin heartbeat por ${Math.round(elapsed/1000)}s`);
+          
+          // Marcar como stale (opcional)
+          StateManager.updateDevice(device.id, { 
+            status: 'offline',
+            stale: true 
+          });
         }
       });
-    }, 30000); // Cada 30s
+    }, 30000); // Verificar cada 30s
   }
 }
 
@@ -593,24 +555,23 @@ new ConnectionMonitor();
 
 ---
 
-### 2. Logger de actualizaciones (debugging)
+### 2. Logger de heartbeats (debugging)
 ```javascript
-// UpdateLogger.js
+// HeartbeatLogger.js
 import EventBus from './core/EventBus.js';
 
-class UpdateLogger {
+class HeartbeatLogger {
   constructor() {
     this.logs = [];
-    this.interceptUpdates();
+    this.interceptHeartbeats();
   }
   
-  interceptUpdates() {
-    // Interceptar mensaje antes de procesar
-    EventBus.on('message:device_update', (message) => {
+  interceptHeartbeats() {
+    EventBus.on('notification:heartbeat', (message) => {
       const entry = {
         timestamp: new Date().toISOString(),
-        deviceId: message.deviceId,
-        changes: this.extractChanges(message),
+        deviceId: message.data.deviceId,
+        heartbeatTime: message.timestamp,
         raw: message
       };
       
@@ -621,19 +582,10 @@ class UpdateLogger {
         this.logs.shift();
       }
       
-      if (window.DEBUG_UPDATES) {
-        console.log('📝 Update logged:', entry);
+      if (window.DEBUG_HEARTBEATS) {
+        console.log('💓 Heartbeat logged:', entry);
       }
     });
-  }
-  
-  extractChanges(message) {
-    const changes = {};
-    if ('status' in message) changes.status = message.status;
-    if ('lastSeen' in message) changes.lastSeen = message.lastSeen;
-    if ('rssi' in message) changes.rssi = message.rssi;
-    // ... más campos
-    return changes;
   }
   
   getLogs(deviceId = null) {
@@ -646,245 +598,28 @@ class UpdateLogger {
   clear() {
     this.logs = [];
   }
-}
-
-const updateLogger = new UpdateLogger();
-window.getUpdateLogs = (deviceId) => updateLogger.getLogs(deviceId);
-```
-
----
-
-### 3. Indicador de señal WiFi (RSSI)
-```javascript
-// RSSIIndicator.js - Actualizar badge de señal WiFi
-import EventBus from './core/EventBus.js';
-import StateManager from './core/StateManager.js';
-
-class RSSIIndicator {
-  constructor(deviceId, element) {
-    this.deviceId = deviceId;
-    this.element = element;
-    this.setupListener();
-    this.update(); // Inicial
-  }
   
-  setupListener() {
-    EventBus.on('state:devices:changed', () => {
-      this.update();
-    });
-  }
-  
-  update() {
-    const device = StateManager.getDevice(this.deviceId);
-    if (!device || !device.rssi) return;
+  getFrequency(deviceId) {
+    const logs = this.getLogs(deviceId);
+    if (logs.length < 2) return null;
     
-    const bars = this.rssiToBars(device.rssi);
-    const color = this.rssiToColor(device.rssi);
+    const times = logs.map(log => new Date(log.timestamp).getTime());
+    const intervals = [];
     
-    this.element.innerHTML = `
-      <div class="rssi-indicator" style="color: ${color}">
-        ${this.renderBars(bars)}
-        <span>${device.rssi} dBm</span>
-      </div>
-    `;
-  }
-  
-  rssiToBars(rssi) {
-    if (rssi >= -50) return 4;      // Excelente
-    if (rssi >= -60) return 3;      // Buena
-    if (rssi >= -70) return 2;      // Regular
-    if (rssi >= -80) return 1;      // Débil
-    return 0;                       // Muy débil
-  }
-  
-  rssiToColor(rssi) {
-    if (rssi >= -60) return '#00ff00';  // Verde
-    if (rssi >= -70) return '#ffff00';  // Amarillo
-    if (rssi >= -80) return '#ff8800';  // Naranja
-    return '#ff0000';                   // Rojo
-  }
-  
-  renderBars(count) {
-    const bars = [];
-    for (let i = 0; i < 4; i++) {
-      const active = i < count ? 'active' : '';
-      bars.push(`<span class="bar ${active}"></span>`);
+    for (let i = 1; i < times.length; i++) {
+      intervals.push(times[i] - times[i-1]);
     }
-    return bars.join('');
+    
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    return Math.round(avgInterval / 1000); // Segundos
   }
 }
 
-// Uso en DeviceCard
-const rssiElement = document.querySelector(`#rssi-${device.id}`);
-new RSSIIndicator(device.id, rssiElement);
+const heartbeatLogger = new HeartbeatLogger();
+window.getHeartbeatLogs = (deviceId) => heartbeatLogger.getLogs(deviceId);
+window.getHeartbeatFrequency = (deviceId) => heartbeatLogger.getFrequency(deviceId);
+
+// Uso en consola:
+// getHeartbeatLogs('ESP32_001') → últimos 100 heartbeats
+// getHeartbeatFrequency('ESP32_001') → promedio en segundos (ej: 30)
 ```
-
----
-
-## ⚡ Performance
-
-### Mediciones (Chrome DevTools):
-- **validate():** < 0.1ms
-- **handle() completo:** < 1ms (incluye StateManager update)
-- **StateManager.updateDevice():** < 0.5ms (Object.assign)
-- **Total latency:** < 2ms (end-to-end)
-
-### Frecuencia de ejecución:
-```
-5 devices × 30s heartbeat = 10 updates/minuto
-100 devices × 30s = 200 updates/minuto
-```
-
-### Overhead estimado:
-```
-200 updates/min × 2ms = 400ms/min = 0.67% CPU
-```
-
-**Conclusión:** Optimizado para alta frecuencia, impacto negligible.
-
----
-
-## 🚨 Errores Comunes
-
-### ❌ Error: "Device no encontrado"
-```javascript
-// Causa: deviceId no existe en StateManager
-{
-  deviceId: 'ESP32_999',  // No existe
-  status: 'online'
-}
-
-// Console output:
-// [DeviceUpdateHandler] Device "ESP32_999" no encontrado en StateManager
-
-// Solución: Verificar que handshake inicial cargó todos los devices
-```
-
----
-
-### ❌ Error: "Debe incluir al menos status o lastSeen"
-```javascript
-// ❌ Backend envía mensaje vacío
-{
-  deviceId: 'ESP32_001'
-  // Sin campos
-}
-
-// Solución: Backend debe enviar al menos uno de:
-{
-  deviceId: 'ESP32_001',
-  status: 'online'  // ✅
-}
-// o
-{
-  deviceId: 'ESP32_001',
-  lastSeen: '2025-10-23T14:30:00.000Z'  // ✅
-}
-```
-
----
-
-### ❌ Warning: Campo no existe en device
-```javascript
-// Backend envía campo nuevo no documentado
-{
-  deviceId: 'ESP32_001',
-  status: 'online',
-  newField: 'value'
-}
-
-// Comportamiento: Se acepta y guarda en StateManager
-// (Flexibilidad para campos futuros)
-
-// Para validar estrictamente, modificar validate():
-validate(message) {
-  const allowedFields = ['status', 'lastSeen', 'rssi', 'uptime'];
-  const extraFields = Object.keys(message).filter(
-    key => key !== 'type' && key !== 'deviceId' && !allowedFields.includes(key)
-  );
-  
-  if (extraFields.length > 0) {
-    console.warn(`Campos no reconocidos: ${extraFields.join(', ')}`);
-  }
-  // ... resto de validación
-}
-```
-
----
-
-## 🔧 Debugging
-
-### Activar logs detallados:
-```javascript
-// En consola del navegador
-window.DEBUG_UPDATES = true;
-
-// Ahora cada update muestra:
-// 📝 Update logged: { timestamp, deviceId, changes, raw }
-```
-
-### Inspeccionar mensajes:
-```javascript
-// Interceptar todos los updates
-const originalHandle = DeviceUpdateHandler.handle.bind(DeviceUpdateHandler);
-DeviceUpdateHandler.handle = function(message) {
-  console.log('🔍 Device update recibido:', message);
-  originalHandle(message);
-};
-```
-
-### Ver historial de updates:
-```javascript
-// Usar UpdateLogger (del caso de uso #2)
-window.getUpdateLogs('ESP32_001');
-// → Array con últimos 100 updates de ESP32_001
-```
-
----
-
-## 📚 Referencias
-
-### Patrones implementados:
-- **Observer Pattern:** EventBus para comunicación
-- **Singleton Pattern:** Una única instancia auto-inicializada
-- **Validation Pattern:** Método `validate()` separado
-- **Silent Update Pattern:** No notifica al usuario (evita spam)
-
-### Frecuencias típicas:
-- **Heartbeat normal:** 30 segundos
-- **Heartbeat agresivo:** 10 segundos (alto tráfico)
-- **Keep-alive mínimo:** 60 segundos (ahorro energía)
-
----
-
-## 🎯 Roadmap
-
-### Mejoras futuras:
-- [ ] **Delta updates:** Solo enviar campos cambiados (ahorro bandwidth)
-- [ ] **Batch updates:** Agrupar múltiples devices en un mensaje
-- [ ] **Compression:** gzip para mensajes grandes
-- [ ] **Schema validation:** Zod/Joi para validación completa
-- [ ] **Metrics:** Contador de updates por device
-- [ ] **Offline detection:** Auto-marcar offline si no hay heartbeat en 90s
-
----
-
-## 📝 Changelog
-
-### v0.2-beta (Actual)
-- ✅ Handler de updates silencioso (sin Toast)
-- ✅ Validación flexible (acepta cualquier combinación)
-- ✅ Verificación de existencia de device
-- ✅ Construcción dinámica de objeto updates
-- ✅ Optimizado para alta frecuencia
-- ✅ Error handling sin notificaciones al usuario
-
----
-
-**Anterior:** [DeviceAlarmHandler.md](./DeviceAlarmHandler.md) - Handler de alarmas  
-**Siguiente:** [HandshakeHandler.md](./HandshakeHandler.md) - Handler de handshake
-
-**Ver también:**
-- [MessageRouter.md](../MessageRouter.md) - Enrutador de mensajes
-- [StateManager.md](../../01-fundamentos/StateManager.md) - Estado global
-- [DeviceList.md](../../03-componentes/DeviceList.md) - Lista de dispositivos

@@ -1,6 +1,6 @@
 # DeviceAlarmHandler - Handler de Eventos de Alarma
 
-**Versión:** v0.2-beta  
+**Versión:** v1.0  
 **Archivo:** `js/services/websocket/handlers/DeviceAlarmHandler.js`  
 **Patrón:** Singleton + Auto-initialization + Observer  
 **Dependencias:** `EventBus.js`, `StateManager.js`, `Toast.js`
@@ -14,9 +14,11 @@ DeviceAlarmHandler es el **procesador de eventos de alarma críticos**. Maneja l
 ### Características principales:
 - ✅ **Auto-initialization**: Se registra automáticamente al importar
 - ✅ **Critical notifications**: Toast de 10 segundos para alarmas activas
+- ✅ **Notification-based**: Escucha `notification:button_pressed` de MessageRouter
 - ✅ **State sync**: Actualiza StateManager automáticamente
 - ✅ **Event emission**: Emite eventos para animaciones/UI
-- ✅ **Strict validation**: Validación estricta de `alarmActive` (boolean)
+- ✅ **Button tracking**: Guarda el nombre del botón presionado
+- ✅ **Strict validation**: Validación de estructura de notificación
 - ✅ **Error isolation**: Try/catch con Toast de error
 - ✅ **Device verification**: Verifica existencia antes de actualizar
 
@@ -27,7 +29,7 @@ DeviceAlarmHandler es el **procesador de eventos de alarma críticos**. Maneja l
 ```javascript
 DeviceAlarmHandler (Singleton)
   ├── constructor()
-  │    └─> EventBus.on('message:device_alarm', handle)
+  │    └─> EventBus.on('notification:button_pressed', handle)
   ├── handle(message)
   │    ├─> validate()
   │    ├─> StateManager.updateDevice()
@@ -49,33 +51,54 @@ import './services/websocket/handlers/DeviceAlarmHandler.js';
 
 ## 📦 Mensaje Esperado (Backend → Frontend)
 
-### Estructura:
+### Estructura de notificación:
 ```javascript
 {
-  type: 'device_alarm',        // Identificador del mensaje
-  deviceId: string,            // ID único del device (ej: 'ESP32_001')
-  alarmActive: boolean,        // Estado de la alarma
-  timestamp: string            // ISO 8601 (opcional)
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: string (ISO 8601),
+  data: {
+    deviceId: string,
+    mac: string,
+    deviceName: string,
+    buttonName: string,
+    buttonKey: string,
+    alarmState: 'activated' | 'deactivated'
+  }
 }
 ```
 
-### Ejemplo - Alarma activada:
+### Ejemplo real - Botón presionado:
 ```javascript
 {
-  type: 'device_alarm',
-  deviceId: 'ESP32_001',
-  alarmActive: true,
-  timestamp: '2025-10-23T14:45:30.000Z'
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X',
+    buttonName: 'BOTON_PANICO',
+    buttonKey: 'BOTON_PANICO',
+    alarmState: 'activated'
+  }
 }
 ```
 
 ### Ejemplo - Alarma desactivada:
 ```javascript
 {
-  type: 'device_alarm',
-  deviceId: 'ESP32_001',
-  alarmActive: false,
-  timestamp: '2025-10-23T14:46:00.000Z'
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:13:20.500Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X',
+    buttonName: 'BOTON_PANICO',
+    buttonKey: 'BOTON_PANICO',
+    alarmState: 'deactivated'
+  }
 }
 ```
 
@@ -89,7 +112,7 @@ Inicializa el handler y se registra en EventBus (auto-ejecutado).
 **Comportamiento:**
 ```javascript
 constructor() {
-  EventBus.on('message:device_alarm', this.handle.bind(this));
+  EventBus.on('notification:button_pressed', this.handle.bind(this));
   console.log('[DeviceAlarmHandler] ✅ Handler registrado');
 }
 ```
@@ -104,10 +127,10 @@ constructor() {
 ---
 
 ### `handle(message)`
-Procesa el mensaje de alarma (método principal).
+Procesa el mensaje de notificación de botón presionado (método principal).
 
 **Parámetros:**
-- `message` (Object): Mensaje recibido del servidor
+- `message` (Object): Mensaje de notificación recibido del servidor
 
 **Retorna:** `void`
 
@@ -121,29 +144,35 @@ handle(message)
   │    ├─> if invalid → console.error + return
   │    └─> if valid → continue
   │
-  ├─> [3] StateManager.getDevice(deviceId)
+  ├─> [3] Extraer datos del mensaje
+  │    const { deviceId, alarmState, buttonName } = message.data
+  │    const alarmActive = alarmState === 'activated'
+  │
+  ├─> [4] StateManager.getDevice(deviceId)
   │    ├─> if not found → console.warn + return
   │    └─> if found → device object
   │
-  ├─> [4] StateManager.updateDevice(deviceId, {
+  ├─> [5] StateManager.updateDevice(deviceId, {
   │         alarmActive: boolean,
-  │         lastSeen: ISO string
+  │         lastSeen: timestamp,
+  │         lastAlarmButton: buttonName
   │       })
   │    ├─> if failed → console.error + return
   │    └─> if success → continue
   │
-  ├─> [5] console.log('🚨 Alarma ... ACTIVADA/DESACTIVADA')
+  ├─> [6] console.log('🚨 Botón "buttonName" presionado en "deviceId"')
   │
-  ├─> [6] Toast.show()
+  ├─> [7] Toast.show()
   │    ├─> if alarmActive === true
-  │    │    └─> Toast.show('🚨 ALARMA ACTIVADA: ...', 'error', 10000)
+  │    │    └─> Toast.show('🚨 ALARMA ACTIVADA: ... (buttonName)', 'error', 10000)
   │    └─> else
   │         └─> Toast.show('✅ Alarma desactivada: ...', 'success')
   │
-  └─> [7] EventBus.emit('device:alarm:changed', {
+  └─> [8] EventBus.emit('device:alarm:changed', {
            deviceId,
            alarmActive,
            deviceName,
+           buttonName,
            timestamp
          })
   
@@ -157,61 +186,86 @@ handle(message)
 ```javascript
 // Mensaje recibido del backend
 const message = {
-  type: 'device_alarm',
-  deviceId: 'ESP32_001',
-  alarmActive: true,
-  timestamp: '2025-10-23T14:45:30.000Z'
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    mac: '77FF44',
+    deviceName: 'ALARMA X',
+    buttonName: 'BOTON_PANICO',
+    buttonKey: 'BOTON_PANICO',
+    alarmState: 'activated'
+  }
 };
 
 // Procesamiento interno (automático)
 // 1. Validación ✅
-// 2. Device encontrado: { id: 'ESP32_001', name: 'Alarma Principal', ... }
-// 3. StateManager actualizado:
+// 2. alarmActive = 'activated' === 'activated' → true
+// 3. Device encontrado: { id: 'ESP32_001', name: 'ALARMA X', ... }
+// 4. StateManager actualizado:
 StateManager.updateDevice('ESP32_001', {
   alarmActive: true,
-  lastSeen: '2025-10-23T14:45:30.000Z'
+  lastSeen: '2025-10-25T05:12:50.426Z',
+  lastAlarmButton: 'BOTON_PANICO'
 });
 
-// 4. Console log:
-// [DeviceAlarmHandler] 🚨 Alarma "ESP32_001": ACTIVADA
+// 5. Console log:
+// [DeviceAlarmHandler] 🚨 Botón "BOTON_PANICO" presionado en "ESP32_001"
 
-// 5. Toast mostrado:
-// Toast: "🚨 ALARMA ACTIVADA: Alarma Principal" (rojo, 10 segundos)
+// 6. Toast mostrado:
+// Toast: "🚨 ALARMA ACTIVADA: ALARMA X (BOTON_PANICO)" (rojo, 10 segundos)
 
-// 6. Evento emitido:
+// 7. Evento emitido:
 EventBus.emit('device:alarm:changed', {
   deviceId: 'ESP32_001',
   alarmActive: true,
-  deviceName: 'Alarma Principal',
-  timestamp: '2025-10-23T14:45:30.000Z'
+  deviceName: 'ALARMA X',
+  buttonName: 'BOTON_PANICO',
+  timestamp: '2025-10-25T05:12:50.426Z'
 });
 ```
 
 ---
 
 ### `validate(message)`
-Valida la estructura del mensaje (privado).
+Valida la estructura del mensaje de notificación (privado).
 
 **Parámetros:**
 - `message` (Object): Mensaje a validar
 
 **Retorna:** `boolean` - true si válido, false si inválido
 
-**Validaciones estrictas:**
+**Validaciones:**
 ```javascript
 validate(message) {
   // 1. Debe ser objeto
   if (!message || typeof message !== 'object') {
+    console.warn('[DeviceAlarmHandler] Mensaje no es un objeto');
     return false;
   }
   
-  // 2. deviceId debe ser string no vacío
-  if (!message.deviceId || typeof message.deviceId !== 'string') {
+  // 2. event debe ser 'button_pressed'
+  if (!message.event || message.event !== 'button_pressed') {
+    console.warn('[DeviceAlarmHandler] event debe ser "button_pressed"');
     return false;
   }
   
-  // 3. alarmActive debe ser boolean ESTRICTO
-  if (typeof message.alarmActive !== 'boolean') {
+  // 3. data debe ser objeto
+  if (!message.data || typeof message.data !== 'object') {
+    console.warn('[DeviceAlarmHandler] data inválido');
+    return false;
+  }
+  
+  // 4. deviceId debe existir en data
+  if (!message.data.deviceId || typeof message.data.deviceId !== 'string') {
+    console.warn('[DeviceAlarmHandler] deviceId inválido');
+    return false;
+  }
+  
+  // 5. alarmState debe ser string
+  if (!message.data.alarmState || typeof message.data.alarmState !== 'string') {
+    console.warn('[DeviceAlarmHandler] alarmState inválido');
     return false;
   }
   
@@ -224,47 +278,61 @@ validate(message) {
 ```javascript
 // ✅ Válido
 validate({
-  deviceId: 'ESP32_001',
-  alarmActive: true
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    alarmState: 'activated',
+    buttonName: 'BOTON_PANICO'
+  }
 }); // → true
 
-// ❌ Inválido - alarmActive no es boolean
+// ❌ Inválido - event incorrecto
 validate({
-  deviceId: 'ESP32_001',
-  alarmActive: 1  // ❌ Number en vez de boolean
+  event: 'heartbeat',  // ← NO es button_pressed
+  data: { deviceId: 'ESP32_001', alarmState: 'activated' }
 }); // → false
 
-// ❌ Inválido - deviceId vacío
+// ❌ Inválido - sin data
 validate({
-  deviceId: '',
-  alarmActive: true
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z'
 }); // → false
 
-// ❌ Inválido - falta alarmActive
+// ❌ Inválido - sin deviceId
 validate({
-  deviceId: 'ESP32_001'
+  event: 'button_pressed',
+  data: { alarmState: 'activated' }
+}); // → false
+
+// ❌ Inválido - sin alarmState
+validate({
+  event: 'button_pressed',
+  data: { deviceId: 'ESP32_001' }
 }); // → false
 ```
 
 **Console output en errores:**
 ```
 [DeviceAlarmHandler] Mensaje no es un objeto
+[DeviceAlarmHandler] event debe ser "button_pressed"
+[DeviceAlarmHandler] data inválido
 [DeviceAlarmHandler] deviceId inválido
-[DeviceAlarmHandler] alarmActive debe ser boolean
+[DeviceAlarmHandler] alarmState inválido
 ```
 
 ---
 
 ## 🔥 Eventos
 
-### Evento escuchado: `message:device_alarm`
-Mensaje enrutado por MessageRouter.
+### Evento escuchado: `notification:button_pressed`
+Notificación de botón presionado enrutada por MessageRouter.
 
-**Emitido por:** MessageRouter (al recibir `{type: 'device_alarm'}`)
+**Emitido por:** MessageRouter (al recibir `{type: 'notification', event: 'button_pressed'}`)
 
 **Listener:**
 ```javascript
-EventBus.on('message:device_alarm', this.handle.bind(this));
+EventBus.on('notification:button_pressed', this.handle.bind(this));
 ```
 
 ---
@@ -277,8 +345,9 @@ Notifica cambio de estado de alarma (para UI/animaciones).
 {
   deviceId: string,       // 'ESP32_001'
   alarmActive: boolean,   // true/false
-  deviceName: string,     // 'Alarma Principal' o deviceId (fallback)
-  timestamp: string       // ISO 8601 o generado
+  deviceName: string,     // 'ALARMA X' o deviceId (fallback)
+  buttonName: string,     // 'BOTON_PANICO'
+  timestamp: string       // ISO 8601
 }
 ```
 
@@ -288,22 +357,23 @@ Notifica cambio de estado de alarma (para UI/animaciones).
 ```javascript
 // DeviceCard.js - Activar animación de alarma
 EventBus.on('device:alarm:changed', ({ deviceId, alarmActive }) => {
-  const card = document.querySelector(`[data-device-id="${deviceId}"]`);
+  if (deviceId !== this.deviceId) return;
   
   if (alarmActive) {
-    card.classList.add('alarm-active');  // Pulso rojo
-    card.classList.add('shake-animation');
+    this.element.classList.add('alarm-active');
+    this.element.classList.add('shake-animation');
   } else {
-    card.classList.remove('alarm-active');
-    card.classList.remove('shake-animation');
+    this.element.classList.remove('alarm-active');
+    this.element.classList.remove('shake-animation');
   }
 });
 
 // AlarmLogger.js - Registrar historial
-EventBus.on('device:alarm:changed', ({ deviceId, alarmActive, timestamp }) => {
+EventBus.on('device:alarm:changed', ({ deviceId, alarmActive, buttonName, timestamp }) => {
   const entry = {
     deviceId,
     alarmActive,
+    buttonName,
     timestamp,
     loggedAt: new Date().toISOString()
   };
@@ -328,21 +398,21 @@ EventBus.on('device:alarm:changed', ({ alarmActive }) => {
 
 ### Alarma activada (crítica):
 ```javascript
-Toast.show('🚨 ALARMA ACTIVADA: Alarma Principal', 'error', 10000);
+Toast.show('🚨 ALARMA ACTIVADA: ALARMA X (BOTON_PANICO)', 'error', 10000);
 ```
 
 **Características:**
 - **Tipo:** `'error'` (rojo)
 - **Duración:** 10,000ms (10 segundos) - extendida
-- **Icono:** 🚨 (emoji en el mensaje)
+- **Formato:** `🚨 ALARMA ACTIVADA: {deviceName} ({buttonName})`
 - **Propósito:** Notificación crítica que requiere atención
 
 **Apariencia:**
 ```
-┌────────────────────────────────────────┐
-│ ❌ 🚨 ALARMA ACTIVADA: Alarma Principal│  ← Fondo rojo
-│                                    [×] │
-└────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ ❌ 🚨 ALARMA ACTIVADA: ALARMA X (BOTON_PANICO)     │  ← Fondo rojo
+│                                                 [×] │
+└─────────────────────────────────────────────────────┘
 (visible por 10 segundos)
 ```
 
@@ -350,21 +420,21 @@ Toast.show('🚨 ALARMA ACTIVADA: Alarma Principal', 'error', 10000);
 
 ### Alarma desactivada (éxito):
 ```javascript
-Toast.show('✅ Alarma desactivada: Alarma Principal', 'success');
+Toast.show('✅ Alarma desactivada: ALARMA X', 'success');
 ```
 
 **Características:**
 - **Tipo:** `'success'` (verde)
 - **Duración:** Default (3 segundos)
-- **Icono:** ✅
+- **Formato:** `✅ Alarma desactivada: {deviceName}`
 - **Propósito:** Confirmar desactivación exitosa
 
 **Apariencia:**
 ```
-┌────────────────────────────────────────┐
-│ ✅ Alarma desactivada: Alarma Principal│  ← Fondo verde
-│                                    [×] │
-└────────────────────────────────────────┘
+┌────────────────────────────────────┐
+│ ✅ Alarma desactivada: ALARMA X   │  ← Fondo verde
+│                                [×] │
+└────────────────────────────────────┘
 (visible por 3 segundos)
 ```
 
@@ -375,66 +445,83 @@ Toast.show('✅ Alarma desactivada: Alarma Principal', 'success');
 ```
 [1] Usuario presiona botón físico en ESP32_001
   ↓
-[2] ESP32 publica MQTT: devices/ESP32_001/alarm
+[2] ESP32 publica MQTT: devices/ESP32_001/events
 {
-  "alarmActive": true,
-  "timestamp": "2025-10-23T14:45:30.000Z"
+  "event": "button",
+  "data": {
+    "nmb-btn": 1
+  }
 }
   ↓
-[3] Backend Node.js recibe MQTT
+[3] Backend Node.js recibe MQTT (mqtt-handler.js)
   ↓
-[4] Backend envía WebSocket a todos los clientes:
+[4] Backend procesa evento (notification-broadcaster.js)
+  ↓
+[5] Backend envía WebSocket a todos los clientes:
 {
-  "type": "device_alarm",
-  "deviceId": "ESP32_001",
-  "alarmActive": true,
-  "timestamp": "2025-10-23T14:45:30.000Z"
+  "type": "notification",
+  "event": "button_pressed",
+  "timestamp": "2025-10-25T05:12:50.426Z",
+  "data": {
+    "deviceId": "ESP32_001",
+    "mac": "77FF44",
+    "deviceName": "ALARMA X",
+    "buttonName": "BOTON_PANICO",
+    "buttonKey": "BOTON_PANICO",
+    "alarmState": "activated"
+  }
 }
   ↓
-[5] WebSocketService.handleMessage()
+[6] WebSocketService.handleMessage()
   ↓
-[6] MessageRouter.route(message)
+[7] MessageRouter.route(message)
   ↓
-[7] EventBus.emit('message:device_alarm', message)
+[8] MessageRouter emite: EventBus.emit('notification:button_pressed', message)
   ↓
-[8] DeviceAlarmHandler.handle(message)
+[9] DeviceAlarmHandler.handle(message)
   │
-  ├─> [8.1] validate() ✅
+  ├─> [9.1] validate() ✅
   │
-  ├─> [8.2] StateManager.getDevice('ESP32_001')
-  │         → { id: 'ESP32_001', name: 'Alarma Principal', alarmActive: false, ... }
+  ├─> [9.2] alarmActive = ('activated' === 'activated') → true
   │
-  ├─> [8.3] StateManager.updateDevice('ESP32_001', {
+  ├─> [9.3] StateManager.getDevice('ESP32_001')
+  │         → { id: 'ESP32_001', name: 'ALARMA X', alarmActive: false, ... }
+  │
+  ├─> [9.4] StateManager.updateDevice('ESP32_001', {
   │           alarmActive: true,
-  │           lastSeen: '2025-10-23T14:45:30.000Z'
+  │           lastSeen: '2025-10-25T05:12:50.426Z',
+  │           lastAlarmButton: 'BOTON_PANICO'
   │         })
   │         ↓
-  │    EventBus.emit('state:devices:changed')
+  │    StateManager emite: 'state:devices:changed'
   │         ↓
-  │    DeviceList re-renderiza (badge rojo "ALARMA")
+  │    DeviceList re-renderiza
   │
-  ├─> [8.4] Toast.show('🚨 ALARMA ACTIVADA: Alarma Principal', 'error', 10000)
+  ├─> [9.5] console.log('[DeviceAlarmHandler] 🚨 Botón "BOTON_PANICO" presionado en "ESP32_001"')
+  │
+  ├─> [9.6] Toast.show('🚨 ALARMA ACTIVADA: ALARMA X (BOTON_PANICO)', 'error', 10000)
   │         ↓
   │    Toast rojo visible por 10 segundos en pantalla
   │
-  └─> [8.5] EventBus.emit('device:alarm:changed', {
+  └─> [9.7] EventBus.emit('device:alarm:changed', {
             deviceId: 'ESP32_001',
             alarmActive: true,
-            deviceName: 'Alarma Principal',
-            timestamp: '2025-10-23T14:45:30.000Z'
+            deviceName: 'ALARMA X',
+            buttonName: 'BOTON_PANICO',
+            timestamp: '2025-10-25T05:12:50.426Z'
           })
           ↓
-     [8.5.1] DeviceCard → Agregar clase 'alarm-active' (pulso rojo)
-     [8.5.2] DeviceCard → Agregar clase 'shake-animation'
-     [8.5.3] AlarmLogger → Guardar en historial
-     [8.5.4] SoundNotifier → Reproducir sonido de alarma
+     [9.7.1] DeviceCard → updateAlarmIndicator(true)
+     [9.7.2] DeviceCard → Agregar clase 'alarm-active' (banner rojo)
+     [9.7.3] AlarmLogger → Guardar en historial
+     [9.7.4] SoundNotifier → Reproducir sonido de alarma
 
-[9] Usuario desactiva alarma (30 segundos después)
+[10] Usuario desactiva alarma desde UI (presiona botón "Reset")
   ↓
-[Similar flow con alarmActive: false]
+[Similar flow con alarmState: 'deactivated']
   ↓
-Toast.show('✅ Alarma desactivada: Alarma Principal', 'success')
-DeviceCard → Remover clases de alarma
+Toast.show('✅ Alarma desactivada: ALARMA X', 'success')
+DeviceCard → updateAlarmIndicator(false)
 SoundNotifier → Detener sonido
 ```
 
@@ -442,7 +529,7 @@ SoundNotifier → Detener sonido
 
 ## 🧪 Testing
 
-### Test: Mensaje válido de activación
+### Test: Notificación válida de activación
 ```javascript
 import DeviceAlarmHandler from './services/websocket/handlers/DeviceAlarmHandler.js';
 import StateManager from './core/StateManager.js';
@@ -461,40 +548,49 @@ Toast.show = (msg, type, duration) => {
   console.log('Toast:', msg, type, duration);
 };
 
-// Simular mensaje
+// Simular notificación
 const message = {
-  type: 'device_alarm',
-  deviceId: 'ESP32_001',
-  alarmActive: true,
-  timestamp: new Date().toISOString()
+  type: 'notification',
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:12:50.426Z',
+  data: {
+    deviceId: 'ESP32_001',
+    alarmState: 'activated',
+    buttonName: 'BOTON_PANICO'
+  }
 };
 
-EventBus.emit('message:device_alarm', message);
+EventBus.emit('notification:button_pressed', message);
 
 // Verificar
 const device = StateManager.getDevice('ESP32_001');
 console.assert(device.alarmActive === true, 'alarmActive debe ser true');
+console.assert(device.lastAlarmButton === 'BOTON_PANICO', 'lastAlarmButton debe guardarse');
 console.assert(toastCalled === true, 'Debe llamar Toast.show');
 
 // Restore
 Toast.show = originalShow;
+console.log('✅ Test passed: notificación válida');
 ```
 
 ---
 
-### Test: Mensaje inválido (sin alarmActive)
+### Test: Mensaje inválido (sin alarmState)
 ```javascript
 const invalidMessage = {
-  deviceId: 'ESP32_001'
-  // Falta alarmActive
+  event: 'button_pressed',
+  data: {
+    deviceId: 'ESP32_001'
+    // Falta alarmState
+  }
 };
 
-// No debe lanzar error
-EventBus.emit('message:device_alarm', invalidMessage);
+EventBus.emit('notification:button_pressed', invalidMessage);
 
-// Debe loggear error
-// [DeviceAlarmHandler] alarmActive debe ser boolean
+// Console output:
+// [DeviceAlarmHandler] alarmState inválido
 // [DeviceAlarmHandler] Mensaje inválido: {...}
+console.log('✅ Test passed: validación de alarmState');
 ```
 
 ---
@@ -504,14 +600,18 @@ EventBus.emit('message:device_alarm', invalidMessage);
 StateManager.setDevices([]);  // Sin devices
 
 const message = {
-  deviceId: 'ESP32_999',  // No existe
-  alarmActive: true
+  event: 'button_pressed',
+  data: {
+    deviceId: 'ESP32_999',  // No existe
+    alarmState: 'activated'
+  }
 };
 
-EventBus.emit('message:device_alarm', message);
+EventBus.emit('notification:button_pressed', message);
 
 // Console output:
 // [DeviceAlarmHandler] Device "ESP32_999" no encontrado en StateManager
+console.log('✅ Test passed: device no existe');
 ```
 
 ---
@@ -527,16 +627,22 @@ EventBus.on('device:alarm:changed', (data) => {
 });
 
 const message = {
-  deviceId: 'ESP32_001',
-  alarmActive: false,
-  timestamp: '2025-10-23T14:46:00.000Z'
+  event: 'button_pressed',
+  timestamp: '2025-10-25T05:13:20.500Z',
+  data: {
+    deviceId: 'ESP32_001',
+    alarmState: 'deactivated',
+    buttonName: 'BOTON_PANICO'
+  }
 };
 
-EventBus.emit('message:device_alarm', message);
+EventBus.emit('notification:button_pressed', message);
 
 console.assert(eventReceived === true, 'Debe emitir evento');
 console.assert(eventData.deviceId === 'ESP32_001', 'deviceId correcto');
-console.assert(eventData.alarmActive === false, 'alarmActive correcto');
+console.assert(eventData.alarmActive === false, 'alarmActive debe ser false');
+console.assert(eventData.buttonName === 'BOTON_PANICO', 'buttonName correcto');
+console.log('✅ Test passed: evento emitido');
 ```
 
 ---
@@ -559,57 +665,69 @@ class DeviceCard {
     EventBus.on('device:alarm:changed', ({ deviceId, alarmActive }) => {
       if (deviceId !== this.device.id) return;
       
-      if (alarmActive) {
-        this.activateAlarmAnimation();
-      } else {
-        this.deactivateAlarmAnimation();
-      }
+      this.updateAlarmIndicator(alarmActive);
     });
   }
   
-  activateAlarmAnimation() {
-    this.element.classList.add('alarm-active');
-    this.element.classList.add('shake');
-    
-    // Pulso rojo infinito
-    this.element.style.animation = 'alarm-pulse 1s infinite';
+  updateAlarmIndicator(alarmActive) {
+    if (alarmActive) {
+      this.element.classList.add('alarm-active');
+      
+      // Agregar banner de alarma
+      if (!this.element.querySelector('.device-alarm-indicator')) {
+        const indicator = this.renderAlarmIndicator();
+        const actions = this.element.querySelector('.device-actions');
+        this.element.insertBefore(indicator, actions);
+      }
+    } else {
+      this.element.classList.remove('alarm-active');
+      
+      // Remover banner de alarma
+      const indicator = this.element.querySelector('.device-alarm-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
   }
   
-  deactivateAlarmAnimation() {
-    this.element.classList.remove('alarm-active');
-    this.element.classList.remove('shake');
-    this.element.style.animation = '';
+  renderAlarmIndicator() {
+    const div = document.createElement('div');
+    div.className = 'device-alarm-indicator';
+    div.innerHTML = '🚨 ALARMA ACTIVA';
+    return div;
   }
 }
 ```
 
 **CSS:**
 ```css
+.alarm-active {
+  border-color: #ff0000 !important;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+.device-alarm-indicator {
+  background-color: #ff0000;
+  color: white;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  animation: alarm-pulse 1s infinite;
+}
+
 @keyframes alarm-pulse {
   0%, 100% {
-    background-color: #ff0000;
-    box-shadow: 0 0 20px #ff0000;
+    opacity: 1;
   }
   50% {
-    background-color: #cc0000;
-    box-shadow: 0 0 40px #ff0000;
+    opacity: 0.7;
   }
-}
-
-.shake {
-  animation: shake 0.5s;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-10px); }
-  75% { transform: translateX(10px); }
 }
 ```
 
 ---
 
-### 2. Historial de alarmas
+### 2. Historial de alarmas con detalles de botón
 ```javascript
 // AlarmHistory.js
 import EventBus from './core/EventBus.js';
@@ -626,18 +744,18 @@ class AlarmHistory {
     });
   }
   
-  addEntry({ deviceId, alarmActive, deviceName, timestamp }) {
+  addEntry({ deviceId, alarmActive, deviceName, buttonName, timestamp }) {
     const entry = {
       deviceId,
       deviceName,
       alarmActive,
+      buttonName: buttonName || 'UNKNOWN',  // ← NUEVO: guardar botón
       timestamp: timestamp || new Date().toISOString(),
       loggedAt: new Date().toISOString()
     };
     
-    this.history.unshift(entry);  // Más reciente primero
+    this.history.unshift(entry);
     
-    // Limitar a últimas 100 entradas
     if (this.history.length > 100) {
       this.history = this.history.slice(0, 100);
     }
@@ -659,6 +777,10 @@ class AlarmHistory {
     return this.history.slice(0, limit);
   }
   
+  getHistoryByButton(buttonName) {
+    return this.history.filter(entry => entry.buttonName === buttonName);
+  }
+  
   clear() {
     this.history = [];
     this.saveToStorage();
@@ -667,11 +789,12 @@ class AlarmHistory {
 
 const alarmHistory = new AlarmHistory();
 window.getAlarmHistory = () => alarmHistory.getHistory();
+window.getAlarmHistoryByButton = (btn) => alarmHistory.getHistoryByButton(btn);
 ```
 
 ---
 
-### 3. Notificación sonora
+### 3. Notificación sonora con información del botón
 ```javascript
 // AlarmSoundNotifier.js
 import EventBus from './core/EventBus.js';
@@ -686,21 +809,21 @@ class AlarmSoundNotifier {
   }
   
   setupListener() {
-    EventBus.on('device:alarm:changed', ({ alarmActive }) => {
+    EventBus.on('device:alarm:changed', ({ alarmActive, buttonName }) => {
       if (alarmActive) {
-        this.play();
+        this.play(buttonName);
       } else {
         this.stop();
       }
     });
   }
   
-  play() {
+  play(buttonName) {
     if (this.isPlaying) return;
     
     this.audio.play().then(() => {
       this.isPlaying = true;
-      console.log('🔊 Sonido de alarma activado');
+      console.log(`🔊 Sonido de alarma activado (${buttonName})`);
     }).catch(error => {
       console.error('Error reproduciendo sonido:', error);
     });
@@ -730,6 +853,7 @@ new AlarmSoundNotifier();
 - **Toast.show():** < 5ms (render + animation)
 
 ### Impacto en UI:
+- **updateAlarmIndicator():** ~5ms
 - **Re-render de DeviceCard:** ~10ms
 - **Animación CSS:** Hardware-accelerated (GPU)
 
@@ -741,8 +865,11 @@ new AlarmSoundNotifier();
 ```javascript
 // Causa: deviceId no existe en StateManager
 {
-  deviceId: 'ESP32_999',  // No existe
-  alarmActive: true
+  event: 'button_pressed',
+  data: {
+    deviceId: 'ESP32_999',  // No existe
+    alarmState: 'activated'
+  }
 }
 
 // Console output:
@@ -753,35 +880,42 @@ new AlarmSoundNotifier();
 
 ---
 
-### ❌ Error: "alarmActive debe ser boolean"
+### ❌ Error: "event debe ser button_pressed"
 ```javascript
-// ❌ Backend envía number en vez de boolean
+// ❌ Evento incorrecto (debería procesarse por otro handler)
 {
-  deviceId: 'ESP32_001',
-  alarmActive: 1  // ❌ Should be true/false
+  event: 'heartbeat',  // NO es button_pressed
+  data: { deviceId: 'ESP32_001' }
 }
 
-// Solución: Corregir en backend (enviar boolean)
-{
-  deviceId: 'ESP32_001',
-  alarmActive: true  // ✅
-}
+// Console output:
+// [DeviceAlarmHandler] event debe ser "button_pressed"
+// [DeviceAlarmHandler] Mensaje inválido: {...}
+
+// Solución: MessageRouter debe enrutar correctamente
 ```
 
 ---
 
-### ❌ Warning: "device.name es undefined"
+### ❌ Error: "alarmState inválido"
 ```javascript
-// Causa: Device no tiene propiedad 'name'
-const device = { id: 'ESP32_001', nombre: 'Alarma 1' };  // 'nombre' no 'name'
+// ❌ Backend no envía alarmState
+{
+  event: 'button_pressed',
+  data: {
+    deviceId: 'ESP32_001'
+    // Falta alarmState
+  }
+}
 
-// Código usa:
-const deviceName = device.name || deviceId;  // 👈 Fallback a deviceId
-
-// Console output:
-// Toast: "🚨 ALARMA ACTIVADA: ESP32_001" (usa ID en vez de nombre)
-
-// Solución: Unificar schema (usar 'name' o 'nombre' consistentemente)
+// Solución: Backend debe incluir alarmState
+{
+  event: 'button_pressed',
+  data: {
+    deviceId: 'ESP32_001',
+    alarmState: 'activated'  // ✅
+  }
+}
 ```
 
 ---
@@ -793,7 +927,7 @@ const deviceName = device.name || deviceId;  // 👈 Fallback a deviceId
 // Interceptar todos los mensajes de alarma
 const originalHandle = DeviceAlarmHandler.handle.bind(DeviceAlarmHandler);
 DeviceAlarmHandler.handle = function(message) {
-  console.log('🔍 Mensaje de alarma recibido:', message);
+  console.log('🔍 Notificación de alarma recibida:', message);
   originalHandle(message);
 };
 ```
@@ -804,7 +938,7 @@ const alarmEvents = [];
 
 EventBus.on('device:alarm:changed', (data) => {
   alarmEvents.push({ ...data, receivedAt: new Date().toISOString() });
-  console.log('Historial de alarmas:', alarmEvents);
+  console.table(alarmEvents);
 });
 
 window.getAlarmEvents = () => alarmEvents;
@@ -818,6 +952,7 @@ window.getAlarmEvents = () => alarmEvents;
 - **Observer Pattern:** EventBus para comunicación
 - **Singleton Pattern:** Una única instancia auto-inicializada
 - **Validation Pattern:** Método `validate()` separado
+- **State conversion:** `alarmState` (string) → `alarmActive` (boolean)
 
 ### Notificaciones críticas:
 - [UX Guidelines: Error Notifications](https://uxdesign.cc/designing-error-messages-88e8e1e37c4e)
@@ -833,13 +968,24 @@ window.getAlarmEvents = () => alarmEvents;
 - [ ] **Rate limiting** (evitar spam si backend falla)
 - [ ] **Confirmación de lectura** (enviar ACK al backend)
 - [ ] **Escalamiento de notificaciones** (re-notificar si no se atiende)
+- [ ] **Múltiples botones por device** (soporte para más botones)
 - [ ] **Integración con servicios externos** (Twilio, PagerDuty)
 
 ---
 
 ## 📝 Changelog
 
-### v0.2-beta (Actual)
+### v1.0 (2025-10-25)
+- ✅ **BREAKING:** Cambio de `message:device_alarm` a `notification:button_pressed`
+- ✅ **BREAKING:** Estructura de mensaje cambiada a notificación
+- ✅ **NUEVO:** Soporte para `buttonName` (guardado en `lastAlarmButton`)
+- ✅ **NUEVO:** Conversión de `alarmState` (string) a `alarmActive` (boolean)
+- ✅ Validación específica para evento `button_pressed`
+- ✅ Toast mejorado con nombre del botón
+- ✅ Evento `device:alarm:changed` incluye `buttonName`
+- ✅ Documentación actualizada con ejemplos reales
+
+### v0.2-beta
 - ✅ Handler de alarmas con validación estricta
 - ✅ Notificaciones críticas (10s duración)
 - ✅ Event emission para UI/animaciones
@@ -850,9 +996,11 @@ window.getAlarmEvents = () => alarmEvents;
 ---
 
 **Anterior:** [DeviceUpdateHandler.md](./DeviceUpdateHandler.md) - Handler de actualizaciones  
-**Siguiente:** [DeviceCard.md](../../03-componentes/DeviceCard.md) - Componente de dispositivo
+**Siguiente:** [HandshakeHandler.md](./HandshakeHandler.md) - Handler de handshake
 
 **Ver también:**
 - [MessageRouter.md](../MessageRouter.md) - Enrutador de mensajes
 - [StateManager.md](../../01-fundamentos/StateManager.md) - Estado global
 - [Toast.md](../../03-componentes/ui/Toast.md) - Notificaciones
+- [DeviceCard.md](../../03-componentes/DeviceCard.md) - Tarjeta de dispositivo
+- [notification-broadcaster.md](../../../backend/notification-broadcaster.md) - Emisor de notificaciones MQTT

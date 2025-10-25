@@ -1,7 +1,7 @@
 [
     {
         "id": "ESP32_001",
-        "mac": "AA:BB:CC:DD:EE:01",
+        "mac": "77FF44",
         "name": "Poste Entrada",
         "status": "online",
         "lastSeen": "2025-09-18T12:00:00.000Z",
@@ -9,7 +9,7 @@
     },
     {
         "id": "ESP32_002",
-        "mac": "AA:BB:CC:DD:EE:02",
+        "mac": "77FB6C",
         "name": "Poste Parque",
         "status": "online",
         "lastSeen": "2025-09-18T11:58:00.000Z",

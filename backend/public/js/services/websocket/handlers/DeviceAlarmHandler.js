@@ -15,15 +15,21 @@ import Toast from '../../../components/ui/Toast.js';
 
 class DeviceAlarmHandler {
     constructor() {
-        // Suscribirse al evento de device_alarm
-        EventBus.on('message:device_alarm', this.handle.bind(this));
+        // Suscribirse al evento de button_pressed
+        EventBus.on('notification:button_pressed', this.handle.bind(this));
         console.log('[DeviceAlarmHandler] ✅ Handler registrado');
     }
 
     /**
-     * Procesar mensaje device_alarm
+     * Procesar mensaje button_pressed
      * 
-     * @param {Object} message - Mensaje del servidor
+     * @param {Object} message - Mensaje de notificación
+     * @param {string} message.event - 'button_pressed'
+     * @param {Object} message.data - Datos del evento
+     * @param {string} message.data.deviceId - ID del dispositivo
+     * @param {string} message.data.alarmState - 'activated' | 'deactivated'
+     * @param {string} message.data.buttonName - Nombre del botón
+     * @param {string} message.timestamp - Timestamp del evento
      */
     handle(message) {
         try {
@@ -33,7 +39,8 @@ class DeviceAlarmHandler {
                 return;
             }
 
-            const { deviceId, alarmActive } = message;
+            const { deviceId, alarmState, buttonName } = message.data;
+            const alarmActive = alarmState === 'activated';
 
             // Verificar que el device existe
             const device = StateManager.getDevice(deviceId);
@@ -42,10 +49,11 @@ class DeviceAlarmHandler {
                 return;
             }
 
-            // Actualizar alarmActive en StateManager
+            // Actualizar StateManager
             const updated = StateManager.updateDevice(deviceId, {
                 alarmActive: alarmActive,
-                lastSeen: message.timestamp || new Date().toISOString()
+                lastSeen: message.timestamp,
+                lastAlarmButton: buttonName
             });
 
             if (!updated) {
@@ -53,21 +61,22 @@ class DeviceAlarmHandler {
                 return;
             }
 
-            console.log(`[DeviceAlarmHandler] 🚨 Alarma "${deviceId}": ${alarmActive ? 'ACTIVADA' : 'DESACTIVADA'}`);
+            console.log(`[DeviceAlarmHandler] 🚨 Botón "${buttonName}" presionado en "${deviceId}"`);
 
             // Mostrar notificación
             const deviceName = device.name || deviceId;
             if (alarmActive) {
-                Toast.show(`🚨 ALARMA ACTIVADA: ${deviceName}`, 'error', 10000); // 10 segundos
+                Toast.show(`🚨 ALARMA ACTIVADA: ${deviceName} (${buttonName})`, 'error', 10000);
             } else {
                 Toast.show(`✅ Alarma desactivada: ${deviceName}`, 'success');
             }
 
-            // Emitir evento para otros módulos (ej: DeviceCard para animación)
+            // Emitir evento para DeviceCard
             EventBus.emit('device:alarm:changed', {
                 deviceId: deviceId,
                 alarmActive: alarmActive,
                 deviceName: deviceName,
+                buttonName: buttonName,
                 timestamp: message.timestamp
             });
 
@@ -87,13 +96,23 @@ class DeviceAlarmHandler {
             return false;
         }
 
-        if (!message.deviceId || typeof message.deviceId !== 'string') {
+        if (!message.event || message.event !== 'button_pressed') {
+            console.warn('[DeviceAlarmHandler] event debe ser "button_pressed"');
+            return false;
+        }
+
+        if (!message.data || typeof message.data !== 'object') {
+            console.warn('[DeviceAlarmHandler] data inválido');
+            return false;
+        }
+
+        if (!message.data.deviceId || typeof message.data.deviceId !== 'string') {
             console.warn('[DeviceAlarmHandler] deviceId inválido');
             return false;
         }
 
-        if (typeof message.alarmActive !== 'boolean') {
-            console.warn('[DeviceAlarmHandler] alarmActive debe ser boolean');
+        if (!message.data.alarmState || typeof message.data.alarmState !== 'string') {
+            console.warn('[DeviceAlarmHandler] alarmState inválido');
             return false;
         }
 

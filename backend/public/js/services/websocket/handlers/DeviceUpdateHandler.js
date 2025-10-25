@@ -15,15 +15,19 @@ import StateManager from '../../../core/StateManager.js';
 
 class DeviceUpdateHandler {
     constructor() {
-        // Suscribirse al evento de device_update
-        EventBus.on('message:device_update', this.handle.bind(this));
+        // Suscribirse al evento de heartbeat
+        EventBus.on('notification:heartbeat', this.handle.bind(this));
         console.log('[DeviceUpdateHandler] ✅ Handler registrado');
     }
 
     /**
-     * Procesar mensaje device_update
+     * Procesar mensaje heartbeat
      * 
-     * @param {Object} message - Mensaje del servidor
+     * @param {Object} message - Mensaje de notificación
+     * @param {string} message.event - 'heartbeat'
+     * @param {Object} message.data - Datos del evento
+     * @param {string} message.data.deviceId - ID del dispositivo
+     * @param {string} message.timestamp - Timestamp del evento
      */
     handle(message) {
         try {
@@ -33,7 +37,8 @@ class DeviceUpdateHandler {
                 return;
             }
 
-            const { deviceId, status, lastSeen } = message;
+            const { deviceId } = message.data;
+            const timestamp = message.timestamp;
 
             // Verificar que el device existe
             const device = StateManager.getDevice(deviceId);
@@ -42,26 +47,18 @@ class DeviceUpdateHandler {
                 return;
             }
 
-            // Construir objeto de actualización
-            const updates = {};
-
-            if (status !== undefined) {
-                updates.status = status;
-            }
-
-            if (lastSeen !== undefined) {
-                updates.lastSeen = lastSeen;
-            }
-
             // Actualizar device en StateManager
-            const updated = StateManager.updateDevice(deviceId, updates);
+            const updated = StateManager.updateDevice(deviceId, {
+                status: 'online',
+                lastSeen: timestamp
+            });
 
             if (updated) {
-                console.log(`[DeviceUpdateHandler] Device "${deviceId}" actualizado:`, updates);
+                console.log(`[DeviceUpdateHandler] 💓 Heartbeat de "${deviceId}" - lastSeen: ${timestamp}`);
             }
 
         } catch (error) {
-            console.error('[DeviceUpdateHandler] Error al procesar update:', error);
+            console.error('[DeviceUpdateHandler] Error al procesar heartbeat:', error);
         }
     }
 
@@ -75,14 +72,23 @@ class DeviceUpdateHandler {
             return false;
         }
 
-        if (!message.deviceId || typeof message.deviceId !== 'string') {
+        if (!message.event || message.event !== 'heartbeat') {
+            console.warn('[DeviceUpdateHandler] event debe ser "heartbeat"');
+            return false;
+        }
+
+        if (!message.data || typeof message.data !== 'object') {
+            console.warn('[DeviceUpdateHandler] data inválido');
+            return false;
+        }
+
+        if (!message.data.deviceId || typeof message.data.deviceId !== 'string') {
             console.warn('[DeviceUpdateHandler] deviceId inválido');
             return false;
         }
 
-        // Al menos uno de estos campos debe estar presente
-        if (message.status === undefined && message.lastSeen === undefined) {
-            console.warn('[DeviceUpdateHandler] No hay campos para actualizar');
+        if (!message.timestamp || typeof message.timestamp !== 'string') {
+            console.warn('[DeviceUpdateHandler] timestamp inválido');
             return false;
         }
 

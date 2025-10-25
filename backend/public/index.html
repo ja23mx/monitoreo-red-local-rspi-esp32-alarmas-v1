@@ -11,6 +11,11 @@
     <link rel="stylesheet" href="./css/device-card.css">
 
     <style>
+        :root {
+            --unam-blue: #002B7A;
+            --accent: #D59F0F;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -19,13 +24,13 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1E3A5F 0%, #2C5282 100%);
             min-height: 100vh;
             padding: 20px;
         }
 
         .app-container {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
         }
 
@@ -37,29 +42,44 @@
             margin-bottom: 24px;
         }
 
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
         .app-title {
             font-size: 28px;
             font-weight: 700;
             color: #111827;
-            margin-bottom: 8px;
+            margin: 0;
         }
 
-        .app-subtitle {
-            font-size: 14px;
-            color: #6b7280;
-        }
-
-        .app-status {
+        .header-right {
             display: flex;
-            gap: 16px;
-            margin-top: 16px;
+            align-items: center;
+            gap: 12px;
             flex-wrap: wrap;
+        }
+
+        .time-box {
+            background: var(--accent);
+            color: var(--unam-blue);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.08);
+            min-width: 170px;
+            text-align: center;
+            font-size: 16px;
         }
 
         .status-badge {
             padding: 8px 16px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
@@ -111,6 +131,26 @@
             #devices-container {
                 grid-template-columns: 1fr;
             }
+
+            .header-top {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .app-title {
+                text-align: center;
+            }
+
+            .header-right {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .time-box,
+            .status-badge {
+                width: 100%;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -119,21 +159,19 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <h1 class="app-title">🚨 Monitoreo Red Local - Botón de Pánico</h1>
-            <p class="app-subtitle">Sistema de monitoreo en tiempo real de dispositivos ESP32</p>
+            <div class="header-top">
+                <h1 class="app-title">Monitoreo de Botones de Pánico</h1>
 
-            <div class="app-status">
-                <div id="status-websocket" class="status-badge error">
-                    <span class="status-indicator"></span>
-                    <span>WebSocket: Desconectado</span>
-                </div>
-                <div id="status-mqtt" class="status-badge error">
-                    <span class="status-indicator"></span>
-                    <span>MQTT: Desconectado</span>
-                </div>
-                <div id="status-devices" class="status-badge warning">
-                    <span class="status-indicator"></span>
-                    <span>Dispositivos: 0/0 online</span>
+                <div class="header-right">
+                    <div id="status-websocket" class="status-badge error">
+                        <span class="status-indicator"></span>
+                        <span>Servidor Offline</span>
+                    </div>
+                    <div id="status-devices" class="status-badge warning">
+                        <span class="status-indicator"></span>
+                        <span>Dispositivos: 0/0 online</span>
+                    </div>
+                    <div id="clock" class="time-box" aria-live="polite">--:-- --</div>
                 </div>
             </div>
         </header>
@@ -153,6 +191,38 @@
         window.EventBus = EventBus;
         window.StateManager = StateManager;
 
+        // Reloj con fecha en formato "DOM 23 SEP 04:34 PM"
+        function updateClock() {
+            const now = new Date();
+
+            // Día de la semana
+            const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+            const dayName = days[now.getDay()];
+
+            // Día del mes
+            const day = now.getDate();
+
+            // Mes
+            const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN',
+                'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+            const monthName = months[now.getMonth()];
+
+            // Hora en formato 12h
+            let hh = now.getHours();
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ampm = hh >= 12 ? 'PM' : 'AM';
+            hh = hh % 12;
+            hh = hh ? hh : 12;
+
+            if (hh < 10) hh = '0' + hh; // Añadir cero inicial si es menor a 10
+
+            // Formato final: "DOM 23 SEP 04:34 PM"
+            const timeString = `${dayName} ${day} ${monthName} ${hh}:${mm} ${ampm}`;
+            document.getElementById('clock').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
         // Actualizar badges de estado
         function updateStatusBadges() {
             const wsConnected = StateManager.isWebSocketConnected();
@@ -164,13 +234,13 @@
             const wsBadge = document.getElementById('status-websocket');
             wsBadge.className = `status-badge ${wsConnected ? 'success' : 'error'}`;
             wsBadge.querySelector('span:last-child').textContent =
-                `WebSocket: ${wsConnected ? 'Conectado' : 'Desconectado'}`;
+                `Servidor ${wsConnected ? 'Online' : 'Offline'}`;
 
             // MQTT badge
-            const mqttBadge = document.getElementById('status-mqtt');
+            /* const mqttBadge = document.getElementById('status-mqtt');
             mqttBadge.className = `status-badge ${mqttConnected ? 'success' : 'error'}`;
             mqttBadge.querySelector('span:last-child').textContent =
-                `MQTT: ${mqttConnected ? 'Conectado' : 'Desconectado'}`;
+                `MQTT: ${mqttConnected ? 'Conectado' : 'Desconectado'}`; */
 
             // Devices badge
             const devicesBadge = document.getElementById('status-devices');
