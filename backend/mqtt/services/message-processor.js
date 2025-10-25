@@ -5,7 +5,6 @@ const { DateTime } = require('luxon'); // Para manejo de fechas ISO 8601
 const validators = require('../utils/message-validators'); // Importa los validadores
 const db = require('../../../data/db-repository'); // Agrega esta línea al inicio si no está
 const { webSocketManager } = require('../../websocket/index.js');
-const NotificationBroadcaster = require('../../websocket/services/notification-broadcaster'); // AGREGAR LÍNEA 5
 
 /**
  * Procesa el mensaje recibido en NODO/<MAC>/ACK.
@@ -77,6 +76,7 @@ function process(topic, payload, mqttClient) {
                 time: getISO8601Timestamp(),
                 event: `btn${cleanPayload.data['nmb-btn']}`
             });
+            db.updateAlarmActiveByMac(mac, true); // Marca alarma como activa
             if (webSocketManager && webSocketManager.notificationBroadcaster) {
                 webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
             }
