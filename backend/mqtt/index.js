@@ -9,6 +9,9 @@ const { webSocketManager } = require('../websocket/index.js');
 // Inicializa el cliente MQTT
 const mqttClient = mqtt.connect(mqttConfig.brokerUrl, mqttConfig.options);
 
+// Importar TaskSystem
+const { taskSystem } = require('../task-services/task-system');
+
 mqttClient.on('connect', () => {
   console.log('[MQTT] Conectado al broker:', mqttConfig.brokerUrl);
 
@@ -27,6 +30,18 @@ mqttClient.on('connect', () => {
       console.log('[MQTT] Suscrito a NODO/+/ACK');
     }
   });
+
+  // Configurar e iniciar TaskSystem
+  taskSystem.setMqttClient(mqttClient);
+  taskSystem.start();
+});
+
+// Manejo de cierre de conexión
+mqttClient.on('close', () => {
+  console.log('[MQTT] Conexión cerrada');
+  if (taskSystem.isRunning) {
+    taskSystem.stop();
+  }
 });
 
 // Procesa mensajes entrantes según el evento

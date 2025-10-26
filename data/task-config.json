@@ -1,0 +1,61 @@
+{
+    "tasks": {
+        "audio_test_1": {
+            "id": "audio_test_1",
+            "name": "Prueba Matutina",
+            "enabled": true,
+            "schedule": {
+                "hour": 15,
+                "minute": 12,
+                "timezone": "America/Mexico_City"
+            },
+            "action": {
+                "type": "mqtt_broadcast",
+                "topic": "SYSTEM/TEST",
+                "payload": {
+                    "event": "play_track",
+                    "track": 11
+                }
+            },
+            "tolerance_minutes": 5,
+            "createdAt": "2025-10-25T20:00:00.000Z",
+            "lastExecution": null,
+            "nextExecution": null
+        },
+        "audio_test_2": {
+            "id": "audio_test_2",
+            "name": "Prueba Vespertina",
+            "enabled": true,
+            "schedule": {
+                "hour": 20,
+                "minute": 0,
+                "timezone": "America/Mexico_City"
+            },
+            "action": {
+                "type": "mqtt_broadcast",
+                "topic": "SYSTEM/TEST",
+                "payload": {
+                    "event": "play_track",
+                    "track": 11
+                }
+            },
+            "tolerance_minutes": 5,
+            "createdAt": "2025-10-25T20:00:00.000Z",
+            "lastExecution": null,
+            "nextExecution": null
+        }
+    },
+    "global_settings": {
+        "enabled": true,
+        "check_interval_ms": 60000,
+        "timezone": "America/Mexico_City",
+        "max_tasks": 10,
+        "default_track": 11,
+        "default_tolerance_minutes": 5
+    },
+    "metadata": {
+        "version": "2.0.0",
+        "lastModified": "2025-10-25T21:07:58.200Z",
+        "taskCount": 2
+    }
+}
