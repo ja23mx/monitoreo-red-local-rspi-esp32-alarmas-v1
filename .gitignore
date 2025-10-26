@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+backend/node_modules/
+**/node_modules/
+
+# Logs
+logs/
+*.log
+
+
+# Sistema
+.DS_Store
+.vscode/
+.env

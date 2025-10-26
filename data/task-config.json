@@ -14,7 +14,7 @@
                 "topic": "SYSTEM/TEST",
                 "payload": {
                     "event": "play_track",
-                    "track": 11
+                    "track": 10
                 }
             },
             "tolerance_minutes": 5,
@@ -27,7 +27,7 @@
             "name": "Prueba Vespertina",
             "enabled": true,
             "schedule": {
-                "hour": 20,
+                "hour": 22,
                 "minute": 0,
                 "timezone": "America/Mexico_City"
             },
@@ -36,7 +36,7 @@
                 "topic": "SYSTEM/TEST",
                 "payload": {
                     "event": "play_track",
-                    "track": 11
+                    "track": 10
                 }
             },
             "tolerance_minutes": 5,
@@ -47,7 +47,7 @@
     },
     "global_settings": {
         "enabled": true,
-        "check_interval_ms": 60000,
+        "check_interval_ms": 3000,
         "timezone": "America/Mexico_City",
         "max_tasks": 10,
         "default_track": 11,
