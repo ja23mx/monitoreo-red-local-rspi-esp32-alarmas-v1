@@ -1,16 +1,130 @@
 {
   "1": {
     "id": 1,
-    "ult_cnx": "2025-10-25T05:23:33Z",
-    "nickname": "ALARMA X",
+    "ult_cnx": "2025-10-27T00:40:52Z",
+    "nickname": "ALARMA 1",
     "location": "Entrada Principal",
-    "alarmActive": true
+    "alarmActive": false,
+    "track": 30
   },
   "2": {
     "id": 2,
     "ult_cnx": "2025-10-03T03:44:55Z",
-    "nickname": "ALARMA Y",
+    "nickname": "ALARMA 2",
     "location": "Parque Central",
-    "alarmActive": true
+    "alarmActive": false,
+    "track": 31
+  },
+  "3": {
+    "id": 3,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 3",
+    "location": "Oficina Principal",
+    "alarmActive": false,
+    "track": 32
+  },
+  "4": {
+    "id": 4,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 4",
+    "location": "Almacén 1",
+    "alarmActive": false,
+    "track": 33
+  },
+  "5": {
+    "id": 5,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 5",
+    "location": "Salida Emergencia",
+    "alarmActive": false,
+    "track": 34
+  },
+  "6": {
+    "id": 6,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 6",
+    "location": "Recepción",
+    "alarmActive": false,
+    "track": 35
+  },
+  "7": {
+    "id": 7,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 7",
+    "location": "Cafetería",
+    "alarmActive": false,
+    "track": 36
+  },
+  "8": {
+    "id": 8,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 8",
+    "location": "Sala de Juntas",
+    "alarmActive": false,
+    "track": 37
+  },
+  "9": {
+    "id": 9,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 9",
+    "location": "Estacionamiento",
+    "alarmActive": false,
+    "track": 38
+  },
+  "10": {
+    "id": 10,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 10",
+    "location": "Laboratorio",
+    "alarmActive": false,
+    "track": 39
+  },
+  "11": {
+    "id": 11,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 11",
+    "location": "Bodega Principal",
+    "alarmActive": false,
+    "track": 40
+  },
+  "12": {
+    "id": 12,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 12",
+    "location": "Área de Servidores",
+    "alarmActive": false,
+    "track": 41
+  },
+  "13": {
+    "id": 13,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 13",
+    "location": "Terraza",
+    "alarmActive": false,
+    "track": 42
+  },
+  "14": {
+    "id": 14,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 14",
+    "location": "Planta Baja",
+    "alarmActive": false,
+    "track": 43
+  },
+  "15": {
+    "id": 15,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 15",
+    "location": "Vestíbulo",
+    "alarmActive": false,
+    "track": 44
+  },
+  "16": {
+    "id": 16,
+    "ult_cnx": "2025-10-25T09:00:00Z",
+    "nickname": "ALARMA 16",
+    "location": "Sala de Control",
+    "alarmActive": false,
+    "track": 45
   }
 }
