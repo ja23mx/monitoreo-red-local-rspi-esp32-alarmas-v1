@@ -88,7 +88,7 @@ Ventana de ejecución: 14:30 - 14:35
 **Archivo:** `task-executor.js`
 
 - Construye payloads MQTT según especificación
-- Publica en topic `SYSTEM/TEST` (broadcast)
+- Publica en topic `SYSTEM/BROADCAST` (broadcast)
 - Genera timestamps ISO 8601 (UTC)
 - Valida payloads antes de publicar
 
@@ -283,7 +283,7 @@ console.log(status);
       },
       "action": {
         "type": "mqtt_broadcast",
-        "topic": "SYSTEM/TEST",
+        "topic": "SYSTEM/BROADCAST",
         "payload": {
           "event": "play_track",
           "track": 11

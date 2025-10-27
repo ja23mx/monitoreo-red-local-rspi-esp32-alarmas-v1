@@ -53,7 +53,7 @@ Diccionario de tareas donde cada clave es el **ID único** de la tarea.
       },
       "action": {
         "type": "mqtt_broadcast",
-        "topic": "SYSTEM/TEST",
+        "topic": "SYSTEM/BROADCAST",
         "payload": {
           "event": "play_track",
           "track": 11
@@ -194,7 +194,7 @@ Acción a ejecutar cuando se dispare la tarea.
 ```json
 "action": {
   "type": "mqtt_broadcast",
-  "topic": "SYSTEM/TEST",
+  "topic": "SYSTEM/BROADCAST",
   "payload": {
     "event": "play_track",
     "track": 11
@@ -547,7 +547,7 @@ Número total de tareas configuradas.
       },
       "action": {
         "type": "mqtt_broadcast",
-        "topic": "SYSTEM/TEST",
+        "topic": "SYSTEM/BROADCAST",
         "payload": {
           "event": "play_track",
           "track": 11
@@ -569,7 +569,7 @@ Número total de tareas configuradas.
       },
       "action": {
         "type": "mqtt_broadcast",
-        "topic": "SYSTEM/TEST",
+        "topic": "SYSTEM/BROADCAST",
         "payload": {
           "event": "play_track",
           "track": 15
@@ -591,7 +591,7 @@ Número total de tareas configuradas.
       },
       "action": {
         "type": "mqtt_broadcast",
-        "topic": "SYSTEM/TEST",
+        "topic": "SYSTEM/BROADCAST",
         "payload": {
           "event": "play_track",
           "track": 11
