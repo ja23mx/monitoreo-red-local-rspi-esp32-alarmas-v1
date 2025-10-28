@@ -6,8 +6,7 @@
 const WEBSOCKET_CONFIG = require('../config/websocket-config');
 const ResponseBuilder = require('../utils/response-builder');
 const clientManager = require('./client-manager');
-const fs = require('fs').promises;
-const path = require('path');
+const dbRepository = require('../../../data/db-repository');
 
 class NotificationBroadcaster {
     constructor() {
@@ -17,8 +16,6 @@ class NotificationBroadcaster {
             failedBroadcasts: 0,
             eventsByType: {}
         };
-        this.macToIdCache = null;
-        this.dataPath = path.join(__dirname, '../../data');
     }
 
     /**
@@ -27,14 +24,11 @@ class NotificationBroadcaster {
      * @param {Object} message - Mensaje MQTT parseado
      * @param {String} deviceMac - MAC del dispositivo (viene del MQTT)
      */
-    async processMqttEvent(topic, message, deviceMac) { // CAMBIAR deviceId por deviceMac
+    async processMqttEvent(topic, message, deviceMac) {
         try {
             this.broadcastStats.totalEvents++;
 
             console.log(`[NotificationBroadcaster] Procesando evento MQTT: ${topic} desde MAC ${deviceMac}`);
-
-            // Traducir MAC a ID limpio
-            const deviceId = await this.translateMacToId(deviceMac);
 
             // Extraer tipo de evento del mensaje (no del topic)
             const eventType = this.extractEventFromMessage(message);
@@ -44,8 +38,13 @@ class NotificationBroadcaster {
                 return;
             }
 
-            // Obtener información del dispositivo usando ID limpio
-            const deviceInfo = await this.getDeviceInfo(deviceId); // Usar ID traducido
+            // ✅ Obtener información del dispositivo directamente desde db-repository
+            const deviceInfo = dbRepository.getDeviceByMac(deviceMac, 5); // 5 min threshold
+
+            if (!deviceInfo) {
+                console.warn(`[NotificationBroadcaster] Dispositivo no encontrado para MAC ${deviceMac}`);
+                return;
+            }
 
             // Procesar según el tipo de evento
             let notification = null;
@@ -80,50 +79,6 @@ class NotificationBroadcaster {
     }
 
     /**
-     * Traduce MAC a ID limpio usando mac_to_id.json
-     * @param {String} mac - MAC del dispositivo
-     * @returns {String} ID limpio del dispositivo
-     */
-    async translateMacToId(mac) { // MÉTODO COMPLETAMENTE NUEVO
-        try {
-            // Cargar cache si no existe
-            if (!this.macToIdCache) {
-                await this.loadMacToIdCache();
-            }
-
-            // Buscar traducción
-            const deviceId = this.macToIdCache[mac];
-
-            if (deviceId) {
-                return deviceId;
-            }
-
-            // Fallback: usar MAC como ID
-            console.warn(`[NotificationBroadcaster] No se encontró traducción para MAC ${mac}, usando MAC como ID`);
-            return mac;
-
-        } catch (error) {
-            console.error(`[NotificationBroadcaster] Error traduciendo MAC ${mac}:`, error);
-            return mac; // Fallback
-        }
-    }
-
-    /**
-     * Carga el cache de MAC to ID
-     */
-    async loadMacToIdCache() { // MÉTODO COMPLETAMENTE NUEVO
-        try {
-            const macToIdPath = path.join(this.dataPath, 'mac_to_id.json');
-            const macToIdContent = await fs.readFile(macToIdPath, 'utf8');
-            this.macToIdCache = JSON.parse(macToIdContent);
-            console.log('[NotificationBroadcaster] Cache MAC to ID cargado');
-        } catch (error) {
-            console.warn('[NotificationBroadcaster] No se pudo cargar mac_to_id.json:', error.message);
-            this.macToIdCache = {}; // Cache vacío
-        }
-    }
-
-    /**
      * Extrae el tipo de evento del mensaje MQTT (no del topic)
      * @param {Object} message - Mensaje MQTT parseado
      * @returns {String|null} Tipo de evento o null
@@ -131,43 +86,6 @@ class NotificationBroadcaster {
     extractEventFromMessage(message) {
         // El evento viene en el campo "event" del mensaje
         return message.event || null;
-    }
-
-    /**
-     * Obtiene información del dispositivo desde archivos JSON
-     * @param {String} deviceId - ID del dispositivo
-     * @returns {Object} Información del dispositivo
-     */
-    async getDeviceInfo(deviceId) {
-        try {
-            // Usar SystemHandler para obtener información consistente
-            const SystemHandler = require('../handlers/system-handler');
-            const systemHandler = new SystemHandler();
-
-            const systemState = await systemHandler.getSystemState();
-            const device = systemState.devices.find(d => d.id === deviceId);
-
-            if (device) {
-                return device;
-            }
-
-            // Fallback: crear información básica
-            return {
-                id: deviceId,
-                mac: 'unknown',
-                name: deviceId,
-                status: 'unknown'
-            };
-
-        } catch (error) {
-            console.error(`[NotificationBroadcaster] Error obteniendo info de ${deviceId}:`, error);
-            return {
-                id: deviceId,
-                mac: 'unknown',
-                name: deviceId,
-                status: 'unknown'
-            };
-        }
     }
 
     /**
@@ -239,7 +157,7 @@ class NotificationBroadcaster {
      * @param {Object} message - Mensaje MQTT
      * @returns {Object} Notificación WebSocket
      */
-    createDeviceResetNotification(deviceInfo, message) { // MÉTODO COMPLETAMENTE NUEVO
+    createDeviceResetNotification(deviceInfo, message) {
         return ResponseBuilder.buildDeviceNotification(
             WEBSOCKET_CONFIG.DEVICE_EVENTS.DEVICE_RESET || 'device_reset',
             deviceInfo,

@@ -170,8 +170,8 @@ SYSTEM/TEST
 **Logs del servidor:**
 ```
 [TaskScheduler] Ejecutando tarea: audio_test_1 (Prueba Matutina)
-[TaskExecutor] Mensaje publicado en SYSTEM/TEST: {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
-[TaskExecutor] ✓ Tarea ejecutada [SCHEDULED]: { topic: 'SYSTEM/TEST', event: 'play_track', track: 11, time: '2025-10-25T08:00:15.234Z' }
+[TaskExecutor] Mensaje publicado en SYSTEM/BROADCAST: {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
+[TaskExecutor] ✓ Tarea ejecutada [SCHEDULED]: { topic: 'SYSTEM/BROADCAST', event: 'play_track', track: 11, time: '2025-10-25T08:00:15.234Z' }
 ```
 
 ---
@@ -182,7 +182,7 @@ SYSTEM/TEST
 
 **Topic:**
 ```
-SYSTEM/TEST
+SYSTEM/BROADCAST
 ```
 
 **Payload:**
@@ -198,8 +198,8 @@ SYSTEM/TEST
 **Logs del servidor:**
 ```
 [TaskSystem] Ejecutando tarea audio_test_2 manualmente...
-[TaskExecutor] Mensaje publicado en SYSTEM/TEST: {"dsp":"all","event":"play_track","time":"2025-10-25T14:35:42.567Z","track":15}
-[TaskExecutor] ✓ Tarea ejecutada [MANUAL]: { topic: 'SYSTEM/TEST', event: 'play_track', track: 15, time: '2025-10-25T14:35:42.567Z' }
+[TaskExecutor] Mensaje publicado en SYSTEM/BROADCAST: {"dsp":"all","event":"play_track","time":"2025-10-25T14:35:42.567Z","track":15}
+[TaskExecutor] ✓ Tarea ejecutada [MANUAL]: { topic: 'SYSTEM/BROADCAST', event: 'play_track', track: 15, time: '2025-10-25T14:35:42.567Z' }
 ```
 
 ---
@@ -210,7 +210,7 @@ SYSTEM/TEST
 
 **Topic:**
 ```
-SYSTEM/TEST
+SYSTEM/BROADCAST
 ```
 
 **Payload:**
@@ -281,7 +281,7 @@ const message = JSON.stringify(payload);
 #### 3. **Publicación MQTT**
 ```javascript
 mqttClient.publish(
-  'SYSTEM/TEST',    // topic
+  'SYSTEM/BROADCAST',    // topic
   message,          // payload (string)
   { qos: 1 },       // options
   (error) => {      // callback
@@ -298,7 +298,7 @@ mqttClient.publish(
 ```cpp
 // Pseudo-código firmware ESP32
 void onMqttMessage(String topic, String payload) {
-  if (topic == "SYSTEM/TEST") {
+  if (topic == "SYSTEM/BROADCAST") {
     JsonDocument doc;
     deserializeJson(doc, payload);
     
@@ -394,8 +394,8 @@ if (!mqttClient.connected) {
 
 #### Log de Publicación Exitosa
 ```
-[TaskExecutor] Mensaje publicado en SYSTEM/TEST: {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
-[TaskExecutor] ✓ Tarea ejecutada [SCHEDULED]: { topic: 'SYSTEM/TEST', event: 'play_track', track: 11, time: '2025-10-25T08:00:15.234Z' }
+[TaskExecutor] Mensaje publicado en SYSTEM/BROADCAST: {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
+[TaskExecutor] ✓ Tarea ejecutada [SCHEDULED]: { topic: 'SYSTEM/BROADCAST', event: 'play_track', track: 11, time: '2025-10-25T08:00:15.234Z' }
 ```
 
 #### Log de Error
@@ -410,10 +410,10 @@ if (!mqttClient.connected) {
 #### 1. **Mosquitto Subscriber (Terminal)**
 ```bash
 # Suscribirse al topic para ver mensajes
-mosquitto_sub -h server-sra.local -t "SYSTEM/TEST" -v
+mosquitto_sub -h server-sra.local -t "SYSTEM/BROADCAST" -v
 
 # Salida esperada:
-# SYSTEM/TEST {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
+# SYSTEM/BROADCAST {"dsp":"all","event":"play_track","time":"2025-10-25T08:00:15.234Z","track":11}
 ```
 
 #### 2. **MQTT Explorer (GUI)**
@@ -428,9 +428,9 @@ const client = mqtt.connect('mqtt://server-sra.local');
 
 client.on('connect', () => {
   console.log('Conectado al broker');
-  client.subscribe('SYSTEM/TEST', (err) => {
+  client.subscribe('SYSTEM/BROADCAST', (err) => {
     if (!err) {
-      console.log('Suscrito a SYSTEM/TEST');
+      console.log('Suscrito a SYSTEM/BROADCAST');
     }
   });
 });
@@ -455,8 +455,8 @@ Los dispositivos ESP32 deben suscribirse al topic:
 void setup() {
   // ... configuración MQTT ...
   
-  mqttClient.subscribe("SYSTEM/TEST");
-  Serial.println("Suscrito a SYSTEM/TEST");
+  mqttClient.subscribe("SYSTEM/BROADCAST");
+  Serial.println("Suscrito a SYSTEM/BROADCAST");
 }
 ```
 
@@ -564,7 +564,7 @@ void onMqttMessage(char* topic, byte* payload, unsigned int length) {
 mosquitto_sub -h server-sra.local -t "#" -v
 
 # 2. Verificar publicación
-mosquitto_pub -h server-sra.local -t "SYSTEM/TEST" -m '{"dsp":"all","event":"play_track","time":"2025-10-25T08:00:00Z","track":11}'
+mosquitto_pub -h server-sra.local -t "SYSTEM/BROADCAST" -m '{"dsp":"all","event":"play_track","time":"2025-10-25T08:00:00Z","track":11}'
 
 # 3. Ver logs del broker
 tail -f /var/log/mosquitto/mosquitto.log

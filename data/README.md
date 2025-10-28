@@ -12,6 +12,7 @@ Permite simular operaciones básicas de una base de datos para el backend MQTT d
   - `nickname` (string): Nombre amigable del dispositivo
   - `location` (string): Ubicación física del dispositivo
   - `alarmActive` (boolean): Estado actual de la alarma
+  - `track` (number): Pista de reproducción de audio (usado en MQTT payload)
 
 - **registro_evento.json:**  
   Almacena el historial de eventos de cada dispositivo, agrupados por ID.
@@ -35,7 +36,27 @@ Obtiene la información de una alarma usando la MAC del dispositivo.
 **Ejemplo:**
 ```javascript
 const alarma = db.getAlarmaByMac('77FF44');
-// { id: 1, ult_cnx: "2025-10-25T03:27:33Z", nickname: "ALARMA X", location: "Entrada Principal", alarmActive: false }
+// { id: 1, ult_cnx: "2025-10-25T03:27:33Z", nickname: "ALARMA X", location: "Entrada Principal", alarmActive: false, track: 30 }
+```
+
+---
+
+### getAlarmaTrackByMac(mac)
+Obtiene el número de pista de reproducción de una alarma usando la MAC del dispositivo.
+
+**Parámetros:**  
+- `mac` (string): MAC del dispositivo.
+
+**Retorna:**  
+- Número de track (ejemplo: `30`), o `null` si la MAC no existe.
+
+**Ejemplo:**
+```javascript
+const track = db.getAlarmaTrackByMac('77FF44');
+// 30
+
+const trackNoExiste = db.getAlarmaTrackByMac('INVALID_MAC');
+// null
 ```
 
 ---
@@ -230,7 +251,12 @@ const db = require('./db-repository');
 // Obtener datos de una alarma por MAC
 const alarma = db.getAlarmaByMac('EA8914');
 console.log(alarma);
-// { id: 2, ult_cnx: "2025-10-03T03:44:55Z", nickname: "ALARMA Y", location: "Parque Central", alarmActive: true }
+// { id: 2, ult_cnx: "2025-10-03T03:44:55Z", nickname: "ALARMA Y", location: "Parque Central", alarmActive: true, track: 31 }
+
+// Obtener solo el track de reproducción
+const track = db.getAlarmaTrackByMac('77FF44');
+console.log(track);
+// 30
 
 // Actualizar última conexión por MAC (manual)
 db.updateUltimaConexionByMac('EA8914', '2025-09-17T06:18:12Z');
@@ -288,14 +314,16 @@ console.log(device);
     "ult_cnx": "2025-10-25T03:27:33Z",
     "nickname": "ALARMA X",
     "location": "Entrada Principal",
-    "alarmActive": false
+    "alarmActive": false,
+    "track": 30
   },
   "2": {
     "id": 2,
     "ult_cnx": "2025-10-03T03:44:55Z",
     "nickname": "ALARMA Y",
     "location": "Parque Central",
-    "alarmActive": true
+    "alarmActive": true,
+    "track": 31
   }
 }
 ```
@@ -324,6 +352,9 @@ console.log(device);
 ---
 
 ## Notas
+
+- **Campo `track`:**  
+  Representa la pista de reproducción de audio que se enviará vía MQTT cuando se active una alarma. Los valores van del 30 al 45 (ALARMA 1 a ALARMA 16).
 
 - **Cálculo de estado online/offline:**  
   Se compara `ult_cnx` con la hora actual. Si la diferencia es mayor al umbral (`timeoutMinutes`), el dispositivo se marca como `offline`.

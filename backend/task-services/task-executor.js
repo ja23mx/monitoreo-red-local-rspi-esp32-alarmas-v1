@@ -4,7 +4,7 @@
  * 
  * Funcionalidades:
  * - Construcción de payloads MQTT
- * - Publicación en topic SYSTEM/TEST (broadcast)
+ * - Publicación en topic SYSTEM/BROADCAST (broadcast)
  * - Generación de timestamps ISO 8601
  * - Validación antes de publicar
  * - Logging de ejecuciones

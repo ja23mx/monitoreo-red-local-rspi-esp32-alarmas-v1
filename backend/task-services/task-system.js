@@ -439,7 +439,7 @@ class TaskSystem {
     }
 
     /**
-     * Ejecuta un test con track personalizado
+     * Ejecuta un broadcast con track personalizado
      * @param {Number} track - Track de audio (0-999)
      * @returns {Object} Resultado de la ejecución
      */
@@ -453,12 +453,12 @@ class TaskSystem {
                 return { success: false, error: 'Track inválido (debe ser 0-999)' };
             }
 
-            console.log(`[TaskSystem] Ejecutando test manual con track ${track}...`);
+            console.log(`[TaskSystem] Ejecutando broadcast manual con track ${track}...`);
 
             // Crear tarea temporal
             const tempTask = {
                 action: {
-                    topic: 'SYSTEM/TEST',
+                    topic: 'SYSTEM/BROADCAST',
                     payload: {
                         event: 'play_track',
                         track
@@ -469,13 +469,13 @@ class TaskSystem {
             const result = await this.executor.execute(tempTask, true);
 
             if (result.success) {
-                console.log(`[TaskSystem] ✓ Test ejecutado exitosamente con track ${track}`);
+                console.log(`[TaskSystem] ✓ Broadcast ejecutado exitosamente con track ${track}`);
             }
 
             return result;
 
         } catch (error) {
-            console.error('[TaskSystem] Error ejecutando test:', error);
+            console.error('[TaskSystem] Error ejecutando broadcast:', error);
             return { success: false, error: error.message };
         }
     }

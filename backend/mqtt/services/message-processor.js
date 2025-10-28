@@ -6,6 +6,8 @@ const validators = require('../utils/message-validators'); // Importa los valida
 const db = require('../../../data/db-repository'); // Agrega esta línea al inicio si no está
 const { webSocketManager } = require('../../websocket/index.js');
 
+const { telegramBotManager } = require('../../telegram-bot/telegram-bot-manager');
+
 /**
  * Procesa el mensaje recibido en NODO/<MAC>/ACK.
  */
@@ -79,6 +81,19 @@ function process(topic, payload, mqttClient) {
             db.updateAlarmActiveByMac(mac, true); // Marca alarma como activa
             if (webSocketManager && webSocketManager.notificationBroadcaster) {
                 webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
+            }
+            // Notificar al bot de Telegram si está activo
+            try {
+                if (telegramBotManager.isRunning) {
+                    telegramBotManager.notifyButtonEvent({
+                        deviceId: payload.dsp,
+                        mac: payload.dsp,
+                        timestamp: payload.time,
+                        topic: topic
+                    });
+                }
+            } catch (error) {
+                console.error('[MessageProcessor] Error notificando a Telegram:', error);
             }
             break;
 

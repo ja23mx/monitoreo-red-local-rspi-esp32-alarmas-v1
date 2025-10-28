@@ -12,7 +12,9 @@ const mqttClient = mqtt.connect(mqttConfig.brokerUrl, mqttConfig.options);
 // Importar TaskSystem
 const { taskSystem } = require('../task-services/task-system');
 
-mqttClient.on('connect', () => {
+const { initializeTelegramBot, stopTelegramBot } = require('../telegram-bot');
+
+mqttClient.on('connect', async () => {
   console.log('[MQTT] Conectado al broker:', mqttConfig.brokerUrl);
 
   //deviceMonitor.startMonitor(60000, 2); // Inicia el monitor de dispositivos
@@ -34,14 +36,22 @@ mqttClient.on('connect', () => {
   // Configurar e iniciar TaskSystem
   taskSystem.setMqttClient(mqttClient);
   taskSystem.start();
+
+  // Inicializar Bot de Telegram
+  await initializeTelegramBot({
+    taskSystem: taskSystem
+  });
 });
 
 // Manejo de cierre de conexión
-mqttClient.on('close', () => {
+mqttClient.on('close', async () => {
   console.log('[MQTT] Conexión cerrada');
   if (taskSystem.isRunning) {
     taskSystem.stop();
   }
+
+  // Detener bot de Telegram
+  await stopTelegramBot();
 });
 
 // Procesa mensajes entrantes según el evento
