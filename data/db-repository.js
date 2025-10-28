@@ -160,7 +160,7 @@ function getAllDevicesForWS(timeoutMinutes = 5) {
             status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
             lastSeen: alarma.ult_cnx || null,
             location: alarma.location || 'Sin ubicación',
-            alarmActive: alarma.alarmActive || false
+            alarmActive: false
         });
     }
 

@@ -70,7 +70,7 @@ function buildButtonAlertMessage(eventData, deviceInfo) {
     const location = deviceInfo?.location || 'Sin ubicación';
     const mac = eventData.mac || eventData.deviceId;
 
-    return `🚨 *ALERTA - Botón Presionado*
+    return `*ALERTA - Botón Activo*
 
 📍 *Dispositivo:* ${deviceName}
 📌 *Ubicación:* ${location}

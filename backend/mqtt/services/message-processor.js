@@ -73,6 +73,8 @@ function process(topic, payload, mqttClient) {
         case 'button': // *** revisado
             // Botón presionado
             sendAck({ mqttClient, mac, cmd: 'button' });
+            // Envía comando de broadcast para reproducir alarma
+            sendBroadcast({ mqttClient, mac });
             // Procesa el botón: cleanPayload.data.nmb-btn
             db.addEventoByMac(mac, {
                 time: getISO8601Timestamp(),
@@ -141,6 +143,27 @@ function sendAck({ mqttClient, mac, cmd, status = 'ok', extra = {} }) {
         time: getISO8601Timestamp(),
         status: status,
         ...extra
+    };
+    mqttClient.publish(topic, JSON.stringify(payload));
+}
+
+/**
+ * Envía mensaje de broadcast, comando play_track con base el mac del nodo.
+*/
+function sendBroadcast({ mqttClient, mac }) {
+
+    const track = db.getAlarmaTrackByMac(mac);
+    if (!track) {
+        console.log(`[Processor] No se encontró track de alarma para MAC ${mac}`);
+        return;
+    }
+
+    const topic = `SYSTEM/BROADCAST`;
+    const payload = {
+        dsp: "all",
+        event: `play_track`,
+        time: getISO8601Timestamp(),
+        track: track
     };
     mqttClient.publish(topic, JSON.stringify(payload));
 }

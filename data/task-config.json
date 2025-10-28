@@ -5,16 +5,16 @@
             "name": "Prueba Matutina",
             "enabled": true,
             "schedule": {
-                "hour": 15,
-                "minute": 12,
+                "hour": 11,
+                "minute": 0,
                 "timezone": "America/Mexico_City"
             },
             "action": {
                 "type": "mqtt_broadcast",
-                "topic": "SYSTEM/TEST",
+                "topic": "SYSTEM/BROADCAST",
                 "payload": {
                     "event": "play_track",
-                    "track": 10
+                    "track": 12
                 }
             },
             "tolerance_minutes": 5,
@@ -27,16 +27,16 @@
             "name": "Prueba Vespertina",
             "enabled": true,
             "schedule": {
-                "hour": 22,
+                "hour": 18,
                 "minute": 0,
                 "timezone": "America/Mexico_City"
             },
             "action": {
                 "type": "mqtt_broadcast",
-                "topic": "SYSTEM/TEST",
+                "topic": "SYSTEM/BROADCAST",
                 "payload": {
                     "event": "play_track",
-                    "track": 10
+                    "track": 13
                 }
             },
             "tolerance_minutes": 5,

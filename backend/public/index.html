@@ -224,7 +224,7 @@
         updateClock();
 
         // Actualizar badges de estado
-        function updateStatusBadges() {
+        /* function updateStatusBadges() {
             const wsConnected = StateManager.isWebSocketConnected();
             const mqttConnected = StateManager.isMQTTConnected();
             const onlineCount = StateManager.getOnlineCount();
@@ -237,10 +237,10 @@
                 `Servidor ${wsConnected ? 'Online' : 'Offline'}`;
 
             // MQTT badge
-            /* const mqttBadge = document.getElementById('status-mqtt');
+            const mqttBadge = document.getElementById('status-mqtt');
             mqttBadge.className = `status-badge ${mqttConnected ? 'success' : 'error'}`;
             mqttBadge.querySelector('span:last-child').textContent =
-                `MQTT: ${mqttConnected ? 'Conectado' : 'Desconectado'}`; */
+                `MQTT: ${mqttConnected ? 'Conectado' : 'Desconectado'}`;
 
             // Devices badge
             const devicesBadge = document.getElementById('status-devices');
@@ -253,7 +253,7 @@
         EventBus.on('state:changed', updateStatusBadges);
         EventBus.on('websocket:connected', updateStatusBadges);
         EventBus.on('websocket:disconnected', updateStatusBadges);
-        EventBus.on('handshake:completed', updateStatusBadges);
+        EventBus.on('handshake:completed', updateStatusBadges); */
 
         // Inicializar aplicación
         App.init({

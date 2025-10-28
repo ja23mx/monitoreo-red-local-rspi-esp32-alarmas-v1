@@ -16,6 +16,7 @@ import WebSocketService from './services/websocket/WebSocketService.js';
 import DeviceList from './components/DeviceList.js';
 import Toast from './components/ui/Toast.js';
 import config from './config/app-config.js';
+import DOMHelpers from './utils/DOMHelpers.js';
 
 // Importar handlers (se auto-inicializan al importarse)
 import './services/websocket/handlers/HandshakeHandler.js';
@@ -104,6 +105,7 @@ class App {
         EventBus.on('websocket:connected', () => {
             console.log('[App] ✅ WebSocket conectado');
             Toast.show('✅ Conectado al servidor', 'success');
+            this.updateWebSocketBadge(true);
         });
 
         // WebSocket desconectado
@@ -115,6 +117,7 @@ class App {
             } else {
                 Toast.show('❌ Conexión perdida, reconectando...', 'error');
             }
+            this.updateWebSocketBadge(false);
         });
 
         // Reconexión en progreso
@@ -132,8 +135,16 @@ class App {
         // Handshake completado
         EventBus.on('handshake:completed', (data) => {
             console.log('[App] 🤝 Handshake completado:', data);
-            const mqttStatus = data.mqttConnected ? 'conectado' : 'desconectado';
-            Toast.show(`✅ ${data.devicesCount} dispositivos cargados (MQTT: ${mqttStatus})`, 'success');
+            //const mqttStatus = data.mqttConnected ? 'conectado' : 'desconectado';
+            //Toast.show(`✅ ${data.devicesCount} dispositivos cargados (MQTT: ${mqttStatus})`, 'success');
+            
+            // Actualizar contador inicial
+            this.updateDeviceCounter();
+        });
+
+        // Actualizar contador cuando cambian devices
+        EventBus.on('state:devices:changed', () => {
+            this.updateDeviceCounter();
         });
 
         // Error de WebSocket
@@ -213,6 +224,53 @@ class App {
         this.initialized = false;
 
         console.log('[App] ✅ Aplicación destruida');
+    }
+
+    /**
+     * Actualizar badge de WebSocket
+     * @private
+     */
+    updateWebSocketBadge(connected) {
+        const wsBadge = DOMHelpers.select('#status-websocket');
+        
+        if (wsBadge) {
+            wsBadge.className = `status-badge ${connected ? 'success' : 'error'}`;
+            const textSpan = DOMHelpers.select('span:last-child', wsBadge);
+            if (textSpan) {
+                DOMHelpers.setContent(textSpan, `Servidor ${connected ? 'Online' : 'Offline'}`);
+            }
+        }
+    }
+
+    /**
+     * Actualizar contador de dispositivos online/total
+     * @private
+     */
+    updateDeviceCounter() {
+        const statusElement = DOMHelpers.select('#status-devices span:last-child');
+        
+        if (statusElement) {
+            const onlineCount = StateManager.getOnlineCount();
+            const totalCount = StateManager.getTotalCount();
+            
+            DOMHelpers.setContent(statusElement, `Dispositivos: ${onlineCount}/${totalCount} online`);
+            
+            // Cambiar clase según proporción
+            const badge = DOMHelpers.select('#status-devices');
+            if (badge) {
+                badge.classList.remove('success', 'warning', 'error');
+                
+                const percentage = totalCount > 0 ? (onlineCount / totalCount) * 100 : 0;
+                
+                if (percentage >= 75) {
+                    badge.classList.add('success'); // Verde: 75%+ online
+                } else if (percentage >= 25) {
+                    badge.classList.add('warning'); // Amarillo: 25-74% online
+                } else {
+                    badge.classList.add('error'); // Rojo: <25% online
+                }
+            }
+        }
     }
 }
 

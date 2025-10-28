@@ -30,7 +30,7 @@ async function handleMessage(msg, bot, taskSystem) {
     const chatType = msg.chat.type; // 'private', 'group', 'supergroup', 'channel'
     const chatTitle = msg.chat.title; // Nombre del grupo (si es grupo)
 
-    /* // Loguear info completa del chat
+    // Loguear info completa del chat
     if (chatType === 'group' || chatType === 'supergroup') {
       logger.info(`📢 MENSAJE DE GRUPO DETECTADO`);
       logger.info(`🆔 Chat ID del Grupo: ${chatId}`);
@@ -40,9 +40,9 @@ async function handleMessage(msg, bot, taskSystem) {
       logger.info(`═══════════════════════════════════════`);
     } else {
       logger.info(`Mensaje recibido de ${userName} (${userId}): ${text || '[sin texto]'}`);
-    } */
+    }
 
-    logger.info(`Mensaje recibido de ${userName} (${userId}): ${text || '[sin texto]'}`);
+    //logger.info(`Mensaje recibido de ${userName} (${userId}): ${text || '[sin texto]'}`);
 
 
     // Validar autorización
