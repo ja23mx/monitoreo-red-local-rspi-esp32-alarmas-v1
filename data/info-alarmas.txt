@@ -1,0 +1,18 @@
+Lista de Alarmas:
+================================================================
+Alarma 1) F2D224 - HOSPITALES - Audio: 30
+Alarma 2) EA8914 - LIME 4 - Audio: 31
+Alarma 3) 77FF44 - A-13 y A-14 - Audio: 32
+Alarma 4) 78087C - LIME 1 - Audio: 33
+Alarma 5) F2C260 - PARADERO - Audio: 34
+Alarma 6) F42F20 - EXPLANADA INGENIERIAS - Audio: 35
+Alarma 7) F3ABE8 - EXPLANADA BIBLIOTECA - Audio: 36
+Alarma 8) F2CD94 - ZONA DEPORTIVA - Audio: 37
+Alarma 9) F47E20 - ESTACIONAMIENTO GOBIERNO - Audio: 38
+Alarma 10) 7802EC - AGRICOLA - Audio: 39
+Alarma 11) F386CC - EXUBE PUERTA TRASERA - Audio: 40
+Alarma 12) 78027C - L-8 - Audio: 41
+Alarma 13) F38718 - ESTACIONAMIENTO VETERINARIA - Audio: 42
+Alarma 14) F2C214 - L-6 NECROPSIAS - Audio: 43
+Alarma 15) F2C48C - SILOS CEA - Audio: 44
+Alarma 16) F2D478 - CORRALES CEA - Audio: 45

@@ -17,6 +17,15 @@ function getAlarmaByMac(mac) {
     return alarmas[id] || null;
 }
 
+// Obtiene el track de una alarma por MAC
+function getAlarmaTrackByMac(mac) {
+    const id = _getIdByMac(mac);
+    if (!id) return null;
+    const alarmas = _readJsonFile(ALARMAS_PATH);
+    const alarma = alarmas[id];
+    return alarma?.track ?? null;
+}
+
 // Actualiza la última conexión de una alarma por MAC
 function updateUltimaConexionByMac(mac, fechaISO) {
     const id = _getIdByMac(mac);
@@ -151,7 +160,7 @@ function getAllDevicesForWS(timeoutMinutes = 5) {
             status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
             lastSeen: alarma.ult_cnx || null,
             location: alarma.location || 'Sin ubicación',
-            alarmActive: alarma.alarmActive || false
+            alarmActive: false
         });
     }
 
@@ -254,6 +263,7 @@ function _getIdByMac(mac) {
 
 module.exports = {
     getAlarmaByMac,
+    getAlarmaTrackByMac,
     updateUltimaConexionByMac,
     addEventoByMac,
     getEventosByMac,

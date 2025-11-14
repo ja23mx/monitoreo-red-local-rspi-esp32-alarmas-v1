@@ -6,6 +6,8 @@ const validators = require('../utils/message-validators'); // Importa los valida
 const db = require('../../../data/db-repository'); // Agrega esta línea al inicio si no está
 const { webSocketManager } = require('../../websocket/index.js');
 
+const { telegramBotManager } = require('../../telegram-bot/telegram-bot-manager');
+
 /**
  * Procesa el mensaje recibido en NODO/<MAC>/ACK.
  */
@@ -71,6 +73,8 @@ function process(topic, payload, mqttClient) {
         case 'button': // *** revisado
             // Botón presionado
             sendAck({ mqttClient, mac, cmd: 'button' });
+            // Envía comando de broadcast para reproducir alarma
+            sendBroadcast({ mqttClient, mac });
             // Procesa el botón: cleanPayload.data.nmb-btn
             db.addEventoByMac(mac, {
                 time: getISO8601Timestamp(),
@@ -79,6 +83,19 @@ function process(topic, payload, mqttClient) {
             db.updateAlarmActiveByMac(mac, true); // Marca alarma como activa
             if (webSocketManager && webSocketManager.notificationBroadcaster) {
                 webSocketManager.notificationBroadcaster.processMqttEvent(topic, cleanPayload, mac);
+            }
+            // Notificar al bot de Telegram si está activo
+            try {
+                if (telegramBotManager.isRunning) {
+                    telegramBotManager.notifyButtonEvent({
+                        deviceId: payload.dsp,
+                        mac: payload.dsp,
+                        timestamp: payload.time,
+                        topic: topic
+                    });
+                }
+            } catch (error) {
+                console.error('[MessageProcessor] Error notificando a Telegram:', error);
             }
             break;
 
@@ -126,6 +143,27 @@ function sendAck({ mqttClient, mac, cmd, status = 'ok', extra = {} }) {
         time: getISO8601Timestamp(),
         status: status,
         ...extra
+    };
+    mqttClient.publish(topic, JSON.stringify(payload));
+}
+
+/**
+ * Envía mensaje de broadcast, comando play_track con base el mac del nodo.
+*/
+function sendBroadcast({ mqttClient, mac }) {
+
+    const track = db.getAlarmaTrackByMac(mac);
+    if (!track) {
+        console.log(`[Processor] No se encontró track de alarma para MAC ${mac}`);
+        return;
+    }
+
+    const topic = `SYSTEM/BROADCAST`;
+    const payload = {
+        dsp: "all",
+        event: `play_track`,
+        time: getISO8601Timestamp(),
+        track: track
     };
     mqttClient.publish(topic, JSON.stringify(payload));
 }

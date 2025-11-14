@@ -515,7 +515,7 @@ Ejecuta una tarea específica inmediatamente (sin esperar horario programado).
 ```javascript
 {
   success: Boolean,
-  topic?: String,          // "SYSTEM/TEST"
+  topic?: String,          // "SYSTEM/BROADCAST"
   payload?: Object,        // Payload MQTT publicado
   timestamp?: String,      // ISO 8601 timestamp
   isManual?: Boolean,      // true
@@ -553,8 +553,8 @@ async function handleTestRun(taskId) {
 **Logs generados:**
 ```
 [TaskSystem] Ejecutando tarea audio_test_1 manualmente...
-[TaskExecutor] Mensaje publicado en SYSTEM/TEST: {"dsp":"all","event":"play_track","time":"2025-10-25T21:15:30.123Z","track":11}
-[TaskExecutor] ✓ Tarea ejecutada [MANUAL]: { topic: 'SYSTEM/TEST', event: 'play_track', track: 11, time: '2025-10-25T21:15:30.123Z' }
+[TaskExecutor] Mensaje publicado en SYSTEM/BROADCAST: {"dsp":"all","event":"play_track","time":"2025-10-25T21:15:30.123Z","track":11}
+[TaskExecutor] ✓ Tarea ejecutada [MANUAL]: { topic: 'SYSTEM/BROADCAST', event: 'play_track', track: 11, time: '2025-10-25T21:15:30.123Z' }
 [TaskSystem] ✓ Tarea audio_test_1 ejecutada exitosamente
 ```
 

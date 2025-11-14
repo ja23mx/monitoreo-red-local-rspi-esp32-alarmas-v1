@@ -3,17 +3,14 @@
  * @brief Maneja comandos desde clientes WebSocket y los envía a dispositivos ESP32 via MQTT
  */
 
-const fs = require('fs').promises;
-const path = require('path');
 const WEBSOCKET_CONFIG = require('../config/websocket-config');
 const ResponseBuilder = require('../utils/response-builder');
 const clientManager = require('../services/client-manager');
+const dbRepository = require('../../../data/db-repository');
 
 class DeviceHandler {
     constructor(mqttClient = null) {
         this.mqttClient = mqttClient;
-        this.dataPath = path.join(__dirname, '../../data');
-        this.idToMacCache = null; // Cache inverso: ID → MAC
         this.pendingCommands = new Map(); // Tracking de comandos pendientes
         this.commandStats = {
             totalCommands: 0,
@@ -61,8 +58,8 @@ class DeviceHandler {
                 return false;
             }
 
-            // Traducir ID a MAC
-            const deviceMac = await this.translateIdToMac(messageData.deviceId);
+            // ✅ Traducir ID a MAC usando db-repository
+            const deviceMac = this.translateIdToMac(messageData.deviceId);
             if (!deviceMac) {
                 this.sendErrorResponse(ws, `Dispositivo no encontrado: ${messageData.deviceId}`);
                 return false;
@@ -143,22 +140,21 @@ class DeviceHandler {
     }
 
     /**
-     * Traduce ID limpio a MAC usando mac_to_id.json (inverso)
-     * @param {String} deviceId - ID limpio del dispositivo
+     * Traduce ID numérico a MAC usando db-repository
+     * @param {Number} deviceId - ID numérico del dispositivo
      * @returns {String|null} MAC del dispositivo o null
      */
-    async translateIdToMac(deviceId) {
+    translateIdToMac(deviceId) {
         try {
-            // Cargar cache si no existe
-            if (!this.idToMacCache) {
-                await this.loadIdToMacCache();
-            }
-
-            // Buscar traducción
-            const deviceMac = this.idToMacCache[deviceId];
+            // ✅ Obtener todos los dispositivos del repositorio
+            const devices = dbRepository.getAllDevicesForWS(60); // 60 min threshold (amplio)
             
-            if (deviceMac) {
-                return deviceMac;
+            // Buscar dispositivo por ID
+            const device = devices.find(d => d.id === deviceId);
+            
+            if (device && device.mac) {
+                console.log(`[DeviceHandler] ID ${deviceId} → MAC ${device.mac}`);
+                return device.mac;
             }
 
             console.warn(`[DeviceHandler] No se encontró MAC para ID ${deviceId}`);
@@ -167,29 +163,6 @@ class DeviceHandler {
         } catch (error) {
             console.error(`[DeviceHandler] Error traduciendo ID ${deviceId}:`, error);
             return null;
-        }
-    }
-
-    /**
-     * Carga el cache inverso de ID to MAC
-     */
-    async loadIdToMacCache() {
-        try {
-            const macToIdPath = path.join(this.dataPath, 'mac_to_id.json');
-            const macToIdContent = await fs.readFile(macToIdPath, 'utf8');
-            const macToIdMap = JSON.parse(macToIdContent);
-            
-            // Crear mapeo inverso: ID → MAC
-            this.idToMacCache = {};
-            for (const [mac, id] of Object.entries(macToIdMap)) {
-                this.idToMacCache[id] = mac;
-            }
-            
-            console.log('[DeviceHandler] Cache ID to MAC cargado');
-            
-        } catch (error) {
-            console.warn('[DeviceHandler] No se pudo cargar mac_to_id.json:', error.message);
-            this.idToMacCache = {}; // Cache vacío
         }
     }
 
@@ -218,7 +191,7 @@ class DeviceHandler {
             // Topic MQTT: NODO/{MAC}/CMD
             const topic = `NODO/${deviceMac}/CMD`;
             
-            console.log(`[DeviceHandler] Enviando comando MQTT: ${topic} →`, `mqttPayload`);
+            console.log(`[DeviceHandler] Enviando comando MQTT: ${topic} →`, mqttPayload);
 
             // Publicar en MQTT
             this.mqttClient.publish(topic, JSON.stringify(mqttPayload));
@@ -266,7 +239,7 @@ class DeviceHandler {
             clearTimeout(pendingCommand.timeout);
             this.pendingCommands.delete(commandId);
 
-            // Traducir MAC a ID para notificación
+            // ✅ Obtener deviceId desde el comando pendiente
             const deviceId = pendingCommand.deviceId;
 
             // Crear notificación de respuesta para clientes WebSocket

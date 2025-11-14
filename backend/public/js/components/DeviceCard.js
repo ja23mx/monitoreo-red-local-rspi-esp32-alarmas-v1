@@ -187,9 +187,54 @@ class DeviceCard {
      * @private
      */
     renderAlarmIndicator() {
-        const indicator = DOMHelpers.createElement('div', 'device-alarm-indicator');
+        const indicator = DOMHelpers.createElement('button', ['device-alarm-indicator', 'btn-alarm-dismiss'], {
+            type: 'button',
+            'data-device-id': this.deviceId
+        });
         DOMHelpers.setContent(indicator, '🚨 ALARMA ACTIVA');
+
+        // Evento click para desactivar alarma
+        DOMHelpers.on(indicator, 'click', () => {
+            this.handleDismissAlarm();
+        });
+
         return indicator;
+    }
+
+    /**
+     * Manejar desactivación de alarma
+     * @private
+    */
+    handleDismissAlarm() {
+        const device = StateManager.getDevice(this.deviceId);
+
+        if (!device) {
+            Toast.show('❌ Device no encontrado', 'error');
+            return;
+        }
+
+        // Enviar comando al servidor para desactivar alarma
+        const command = {
+            type: 'device_command',
+            deviceId: this.deviceId,
+            command: 'dismiss_alarm',
+            timestamp: new Date().toISOString()
+        };
+
+        const sent = WebSocketService.send(command);
+
+        if (sent) {
+            Toast.show(`✅ Desactivando alarma de ${device.name}`, 'info');
+            console.log('[DeviceCard] Comando dismiss_alarm enviado:', command);
+
+            // ✅ ACTUALIZACIÓN OPTIMISTA: Remover inmediatamente del UI
+            StateManager.updateDevice(this.deviceId, { alarmActive: false });
+
+            // Esto emitirá 'device:alarm:changed' automáticamente
+            // y el botón desaparecerá via updateAlarmIndicator()
+        } else {
+            Toast.show('❌ Error: WebSocket desconectado', 'error');
+        }
     }
 
     /**
@@ -258,7 +303,7 @@ class DeviceCard {
         };
 
         if (action === 'play_track') {
-            command.data = { track: 10 };  
+            command.data = { track: 10 };
         }
 
         const sent = WebSocketService.send(command);
@@ -369,10 +414,24 @@ class DeviceCard {
         this.lastSeenUpdateTimer = setInterval(() => {
             const device = StateManager.getDevice(this.deviceId);
             if (device && this.element) {
+                // ✅ CORRECCIÓN: Buscar el elemento en el DOM
                 const lastSeenElement = DOMHelpers.select('.device-last-seen', this.element);
-                this.updateLastSeenText(lastSeenElement, device.lastSeen);
+
+                // 1. Actualizar texto "Visto: hace X"
+                if (lastSeenElement) {
+                    this.updateLastSeenText(lastSeenElement, device.lastSeen);
+                }
+
+                // 2. ✨ NUEVO: Verificar timeout
+                const timeSinceLastSeen = Date.now() - new Date(device.lastSeen).getTime();
+                const TIMEOUT_MS = 60 * 1000; // 60 segundos
+
+                if (timeSinceLastSeen > TIMEOUT_MS && device.status === 'online') {
+                    // Marcar como offline
+                    StateManager.updateDevice(this.deviceId, { status: 'offline' });
+                }
             }
-        }, 60000); // Cada 1 minuto
+        }, 5000); // Cada 5 segundos
     }
 
     /**

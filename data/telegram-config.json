@@ -1,0 +1,27 @@
+{
+    "bot_token": "8404370142:AAHSQbJ6TRjjaJBYIqAGHTGb6IeuQ8bPCy0",
+    "authorized_users": [
+        {
+            "chat_id": 7581887852,
+            "name": "jorge dev",
+            "role": "admin"
+        },
+        {
+            "chat_id": 1234567890,
+            "name": "Operador Principal",
+            "role": "operator"
+        }
+    ],
+    "notification_group": {
+        "enabled": true,
+        "chat_id": -1003239593772,
+        "name": "MONITOREO UNAM"
+    },
+    "settings": {
+        "polling": true,
+        "webhook": false,
+        "webhook_url": "",
+        "polling_interval": 300,
+        "timezone": "America/Mexico_City"
+    }
+}
