@@ -1,5 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
+
+const DB_PATH = path.join(__dirname, 'alarmas.db');
+const db = new Database(DB_PATH);
+
+// Habilitar foreign keys
+db.pragma('foreign_keys = ON');
 
 const ALARMAS_PATH = path.join(__dirname, 'alarmas.json');
 const EVENTOS_PATH = path.join(__dirname, 'registro_evento.json');
@@ -11,203 +18,293 @@ const MAC_TO_ID_PATH = path.join(__dirname, 'mac_to_id.json');
 
 // Obtiene la información de una alarma por MAC
 function getAlarmaByMac(mac) {
-    const id = _getIdByMac(mac);
-    if (!id) return null;
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    return alarmas[id] || null;
+    try {
+        const stmt = db.prepare(`
+            SELECT 
+                id,
+                mac,
+                nickname,
+                location,
+                ult_cnx,
+                alarm_active,
+                track
+            FROM devices
+            WHERE mac = ?
+        `);
+
+        const row = stmt.get(mac);
+
+        if (!row) return null;
+
+        return {
+            id: row.id,
+            ult_cnx: row.ult_cnx,
+            nickname: row.nickname,
+            location: row.location,
+            alarmActive: row.alarm_active === 1,
+            track: row.track
+        };
+
+    } catch (error) {
+        console.error('[db-repository] Error en getAlarmaByMac:', error);
+        return null;
+    }
 }
 
 // Obtiene el track de una alarma por MAC
 function getAlarmaTrackByMac(mac) {
-    const id = _getIdByMac(mac);
-    if (!id) return null;
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    const alarma = alarmas[id];
-    return alarma?.track ?? null;
+    try {
+        const stmt = db.prepare(`
+            SELECT track 
+            FROM devices 
+            WHERE mac = ?
+        `);
+
+        const row = stmt.get(mac);
+
+        return row ? row.track : null;
+
+    } catch (error) {
+        console.error('[db-repository] Error en getAlarmaTrackByMac:', error);
+        return null;
+    }
 }
 
 // Actualiza la última conexión de una alarma por MAC
 function updateUltimaConexionByMac(mac, fechaISO) {
-    const id = _getIdByMac(mac);
-    if (!id) return false;
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    if (alarmas[id]) {
-        alarmas[id].ult_cnx = fechaISO;
-        _writeJsonFile(ALARMAS_PATH, alarmas);
-        return true;
+    try {
+        const stmt = db.prepare(`
+            UPDATE devices 
+            SET ult_cnx = ?,
+                updated_at = datetime('now')
+            WHERE mac = ?
+        `);
+
+        const result = stmt.run(fechaISO, mac);
+
+        return result.changes > 0;
+
+    } catch (error) {
+        console.error('[db-repository] Error en updateUltimaConexionByMac:', error);
+        return false;
     }
-    return false;
 }
 
 // Agrega un evento al historial de un dispositivo por MAC
 function addEventoByMac(mac, eventoObj) {
-    const id = _getIdByMac(mac);
-    if (!id) return false;
-    let eventos = {};
-
-    // Intenta leer el archivo, si está vacío o tiene error, inicializa como objeto vacío
     try {
-        const raw = fs.existsSync(EVENTOS_PATH) ? fs.readFileSync(EVENTOS_PATH, 'utf8') : '';
-        eventos = raw.trim() ? JSON.parse(raw) : {};
-    } catch (e) {
-        console.error('[db-repository] Error leyendo archivo (se inicializa vacío):', EVENTOS_PATH, e);
-        eventos = {};
+        // Obtener device_id desde MAC
+        const deviceStmt = db.prepare('SELECT id FROM devices WHERE mac = ?');
+        const device = deviceStmt.get(mac);
+
+        if (!device) {
+            console.error(`[db-repository] Dispositivo con MAC ${mac} no encontrado`);
+            return false;
+        }
+
+        // Generar event_id único
+        const countStmt = db.prepare('SELECT COUNT(*) as total FROM events WHERE device_id = ?');
+        const count = countStmt.get(device.id).total;
+        const eventId = `evt-${count + 1}`;
+
+        // Insertar evento
+        const insertStmt = db.prepare(`
+            INSERT INTO events (device_id, event_id, time, event_type, data)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+
+        const result = insertStmt.run(
+            device.id,
+            eventId,
+            eventoObj.time,
+            eventoObj.event || 'unknown',
+            eventoObj.data ? JSON.stringify(eventoObj.data) : null
+        );
+
+        return result.changes > 0;
+
+    } catch (error) {
+        console.error('[db-repository] Error en addEventoByMac:', error);
+        return false;
     }
-
-    // Inicializa el historial si no existe
-    if (!eventos[id]) eventos[id] = [];
-
-    // Genera el siguiente id secuencial: evt-<n>
-    const nextNum = eventos[id].length + 1;
-    const eventoId = `evt-${nextNum}`;
-
-    // Crea el nuevo evento con id generado
-    const nuevoEvento = {
-        ...eventoObj,
-        id: eventoId
-    };
-
-    eventos[id].push(nuevoEvento);
-    _writeJsonFile(EVENTOS_PATH, eventos);
-    return true;
 }
 
 // Obtiene todos los eventos de un dispositivo por MAC
 function getEventosByMac(mac) {
-    const id = _getIdByMac(mac);
-    if (!id) return [];
-    const eventos = _readJsonFile(EVENTOS_PATH);
-    return eventos[id] || [];
+    try {
+        const stmt = db.prepare(`
+            SELECT 
+                e.event_id as id,
+                e.time,
+                e.event_type as event,
+                e.data
+            FROM events e
+            JOIN devices d ON e.device_id = d.id
+            WHERE d.mac = ?
+            ORDER BY e.time DESC
+        `);
+
+        const rows = stmt.all(mac);
+
+        return rows.map(row => ({
+            id: row.id,
+            time: row.time,
+            event: row.event,
+            data: row.data ? JSON.parse(row.data) : null
+        }));
+
+    } catch (error) {
+        console.error('[db-repository] Error en getEventosByMac:', error);
+        return [];
+    }
 }
 
 // Borra eventos antiguos de un dispositivo por MAC
 function deleteEventosByMac(mac, dias = 30) {
-    const id = _getIdByMac(mac);
-    if (!id) return false;
-    let eventos = _readJsonFile(EVENTOS_PATH);
+    try {
+        const deviceStmt = db.prepare('SELECT id FROM devices WHERE mac = ?');
+        const device = deviceStmt.get(mac);
 
-    // Si no hay historial, nada que borrar
-    if (!eventos[id] || !Array.isArray(eventos[id])) return true;
+        if (!device) {
+            console.error(`[db-repository] Dispositivo con MAC ${mac} no encontrado`);
+            return false;
+        }
 
-    if (dias === 0) {
-        // Borra todo el historial
-        eventos[id] = [];
-    } else {
-        const now = new Date();
-        eventos[id] = eventos[id].filter(ev => {
-            const evDate = new Date(ev.time);
-            if (dias === 1) {
-                // Solo conserva eventos del mismo día
-                return evDate.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
-            } else {
-                // Conserva eventos dentro del rango de días
-                const diff = (now - evDate) / (1000 * 60 * 60 * 24);
-                return diff <= dias;
-            }
-        });
+        let deleteStmt;
+
+        if (dias === 0) {
+            // Borra todo el historial
+            deleteStmt = db.prepare('DELETE FROM events WHERE device_id = ?');
+            deleteStmt.run(device.id);
+        } else if (dias === 1) {
+            // Solo conserva eventos del día actual
+            deleteStmt = db.prepare(`
+                DELETE FROM events 
+                WHERE device_id = ? 
+                AND date(time) != date('now')
+            `);
+            deleteStmt.run(device.id);
+        } else {
+            // Borra eventos más antiguos que N días
+            deleteStmt = db.prepare(`
+                DELETE FROM events 
+                WHERE device_id = ? 
+                AND julianday('now') - julianday(time) > ?
+            `);
+            deleteStmt.run(device.id, dias);
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('[db-repository] Error en deleteEventosByMac:', error);
+        return false;
     }
-
-    _writeJsonFile(EVENTOS_PATH, eventos);
-    return true;
 }
 
 // Borra eventos antiguos de todos los dispositivos
 function deleteEventosAll(dias = 30) {
-    let eventos = _readJsonFile(EVENTOS_PATH);
-    const ids = Object.keys(eventos);
+    try {
+        const stmt = db.prepare('DELETE FROM events');
+        stmt.run();
+        return true;
 
-    ids.forEach(id => {
-        // Simula MAC inversa si necesitas, pero aquí usamos el id directamente
-        // Si tienes MAC, puedes obtenerla con una función inversa si lo requieres
-        if (Array.isArray(eventos[id])) {
-            if (dias === 0) {
-                eventos[id] = [];
-            } else {
-                const now = new Date();
-                eventos[id] = eventos[id].filter(ev => {
-                    const evDate = new Date(ev.time);
-                    if (dias === 1) {
-                        return evDate.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
-                    } else {
-                        const diff = (now - evDate) / (1000 * 60 * 60 * 24);
-                        return diff <= dias;
-                    }
-                });
-            }
-        }
-    });
-
-    _writeJsonFile(EVENTOS_PATH, eventos);
-    return true;
+    } catch (error) {
+        console.error('[db-repository] Error en deleteEventosAll:', error);
+        return false;
+    }
 }
 
-// Obtiene todos los dispositivos formateados para WebSocket
+/** Obtiene todos los dispositivos formateados para WebSocket */
 function getAllDevicesForWS(timeoutMinutes = 5) {
-    const macToId = _readJsonFile(MAC_TO_ID_PATH);
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    const idToMac = _getIdToMacMap();
+    try {
+        const stmt = db.prepare(`
+            SELECT 
+                id,
+                mac,
+                nickname,
+                location,
+                ult_cnx,
+                alarm_active,
+                track
+            FROM devices
+            ORDER BY id ASC
+        `);
 
-    const devices = [];
+        const rows = stmt.all();
 
-    for (const [mac, id] of Object.entries(macToId)) {
-        const alarma = alarmas[id];
-        if (!alarma) continue; // Skip si no existe en alarmas.json
+        return rows.map(row => ({
+            id: `ESP32_${String(row.id).padStart(3, '0')}`,
+            mac: row.mac,
+            name: row.nickname,
+            status: _calculateDeviceStatus(row.ult_cnx, timeoutMinutes),
+            lastSeen: row.ult_cnx || new Date(0).toISOString(),
+            location: row.location,
+            alarmActive: row.alarm_active === 1
+        }));
 
-        devices.push({
-            id: `ESP32_${String(id).padStart(3, '0')}`, // ESP32_001, ESP32_002
-            mac: mac,
-            name: alarma.nickname || `Dispositivo ${id}`,
-            status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
-            lastSeen: alarma.ult_cnx || null,
-            location: alarma.location || 'Sin ubicación',
-            alarmActive: false
-        });
+    } catch (error) {
+        console.error('[db-repository] Error en getAllDevicesForWS:', error);
+        return [];
     }
-
-    return devices;
 }
 
 // Obtiene un dispositivo por MAC formateado para WebSocket
 function getDeviceByMac(mac, timeoutMinutes = 5) {
-    const id = _getIdByMac(mac);
-    if (!id) return null;
+    try {
+        const stmt = db.prepare(`
+            SELECT 
+                id,
+                mac,
+                nickname,
+                location,
+                ult_cnx,
+                alarm_active,
+                track
+            FROM devices
+            WHERE mac = ?
+        `);
 
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    const alarma = alarmas[id];
-    if (!alarma) return null;
+        const row = stmt.get(mac);
 
-    return {
-        id: `ESP32_${String(id).padStart(3, '0')}`,
-        mac: mac,
-        name: alarma.nickname || `Dispositivo ${id}`,
-        status: _calculateDeviceStatus(alarma.ult_cnx, timeoutMinutes),
-        lastSeen: alarma.ult_cnx || null,
-        location: alarma.location || 'Sin ubicación',
-        alarmActive: alarma.alarmActive || false
-    };
+        if (!row) {
+            return null;
+        }
+
+        return {
+            id: `ESP32_${String(row.id).padStart(3, '0')}`,
+            mac: row.mac,
+            name: row.nickname,
+            status: _calculateDeviceStatus(row.ult_cnx, timeoutMinutes),
+            lastSeen: row.ult_cnx || new Date(0).toISOString(),
+            location: row.location,
+            alarmActive: row.alarm_active === 1
+        };
+
+    } catch (error) {
+        console.error('[db-repository] Error en getDeviceByMac:', error);
+        return null;
+    }
 }
 
 // Actualiza el estado de alarma activa por MAC
 function updateAlarmActiveByMac(mac, isActive) {
-    const id = _getIdByMac(mac);
-    if (!id) return false;
+    try {
+        const stmt = db.prepare(`
+            UPDATE devices 
+            SET alarm_active = ?,
+                updated_at = datetime('now')
+            WHERE mac = ?
+        `);
 
-    const alarmas = _readJsonFile(ALARMAS_PATH);
-    if (alarmas[id]) {
-        alarmas[id].alarmActive = isActive;
+        const result = stmt.run(isActive ? 1 : 0, mac);
 
-        if (isActive) {
-            const now = new Date().toISOString();
-            alarmas[id].ult_cnx = now;
-            console.log(`[DB-Repository] Alarma ${id} activada y ult_cnx actualizado: ${now}`);
-        } else {
-            console.log(`[DB-Repository] Alarma ${id} desactivada`);
-        }
+        return result.changes > 0;
 
-        _writeJsonFile(ALARMAS_PATH, alarmas);
-        return true;
+    } catch (error) {
+        console.error('[db-repository] Error en updateAlarmActiveByMac:', error);
+        return false;
     }
-    return false;
 }
 
 // Helper: Calcula el status basado en última conexión
@@ -219,46 +316,6 @@ function _calculateDeviceStatus(ultimaConexion, thresholdMinutes = 5) {
     const diffMinutes = (now - lastSeen) / (1000 * 60);
 
     return diffMinutes <= thresholdMinutes ? 'online' : 'offline';
-}
-
-// Helper: Invierte mac_to_id para obtener MAC por ID
-function _getIdToMacMap() {
-    const macToId = _readJsonFile(MAC_TO_ID_PATH);
-    return Object.entries(macToId).reduce((acc, [mac, id]) => {
-        acc[id] = mac;
-        return acc;
-    }, {});
-}
-
-/**
- * Locales (no exportados)
- */
-
-// Lee un archivo JSON y lo parsea
-function _readJsonFile(filePath) {
-    try {
-        if (!fs.existsSync(filePath)) return {};
-        const data = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(data);
-    } catch (e) {
-        console.error('[db-repository] Error leyendo archivo:', filePath, e);
-        return {};
-    }
-}
-
-// Escribe un objeto en un archivo JSON
-function _writeJsonFile(filePath, obj) {
-    try {
-        fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), 'utf8');
-    } catch (e) {
-        console.error('[db-repository] Error escribiendo archivo:', filePath, e);
-    }
-}
-
-// Obtiene el ID correspondiente a una MAC
-function _getIdByMac(mac) {
-    const macToId = _readJsonFile(MAC_TO_ID_PATH);
-    return macToId[mac] || null;
 }
 
 module.exports = {
