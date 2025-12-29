@@ -1,7 +1,7 @@
 {
   "1": {
     "id": 1,
-    "ult_cnx": "2025-10-28T00:18:05Z",
+    "ult_cnx": "2025-12-29T20:48:58Z",
     "nickname": "HOSPITALES",
     "location": "HOSPITALES",
     "alarmActive": true,
@@ -9,7 +9,7 @@
   },
   "2": {
     "id": 2,
-    "ult_cnx": "2025-10-03T03:44:55Z",
+    "ult_cnx": "2025-12-29T20:48:59Z",
     "nickname": "LIME 4",
     "location": "LIME 4",
     "alarmActive": false,
@@ -57,7 +57,7 @@
   },
   "8": {
     "id": 8,
-    "ult_cnx": "2025-10-27T23:13:04.298Z",
+    "ult_cnx": "2025-12-29T20:48:59Z",
     "nickname": "ZONA DEPORTIVA",
     "location": "ZONA DEPORTIVA",
     "alarmActive": true,
@@ -81,7 +81,7 @@
   },
   "11": {
     "id": 11,
-    "ult_cnx": "2025-10-28T04:38:17.977Z",
+    "ult_cnx": "2025-12-29T20:48:27Z",
     "nickname": "EXUBE PUERTA TRASERA",
     "location": "EXUBE PUERTA TRASERA",
     "alarmActive": true,
