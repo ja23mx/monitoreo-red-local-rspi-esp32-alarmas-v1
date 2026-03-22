@@ -2,7 +2,7 @@
 // Configuración para la conexión MQTT
 
 module.exports = {
-    brokerUrl: 'mqtt://server-sra.local', // Cambia la URL del broker según tu entorno
+    brokerUrl: 'mqtt://localhost', // Cambia la URL del broker según tu entorno
     options: {
         clean: true,
         username: 'user-mqtt', // Usuario MQTT

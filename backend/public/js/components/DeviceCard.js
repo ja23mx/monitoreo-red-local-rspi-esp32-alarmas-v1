@@ -424,7 +424,7 @@ class DeviceCard {
 
                 // 2. ✨ NUEVO: Verificar timeout
                 const timeSinceLastSeen = Date.now() - new Date(device.lastSeen).getTime();
-                const TIMEOUT_MS = 60 * 1000; // 60 segundos
+                const TIMEOUT_MS = 300 * 1000; // 300 segundos = 5 minutos
 
                 if (timeSinceLastSeen > TIMEOUT_MS && device.status === 'online') {
                     // Marcar como offline

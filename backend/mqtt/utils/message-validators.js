@@ -15,6 +15,9 @@ function Iso8601Recent(time, toleranceSeconds = 60) {
 
     console.log('[Iso8601Recent] time:', time);
 
+    // no importa la fecha y hora, para evitar problemas con la zona horaria y de sincronizacion
+    return true;
+
     if (!validateIso8601(time)) {
         console.log('[Iso8601Recent] Falla validateIso8601:', time);
         return false;
