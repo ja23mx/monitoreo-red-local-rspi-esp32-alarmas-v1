@@ -15,10 +15,10 @@ function Iso8601Recent(time, toleranceSeconds = 60) {
 
     console.log('[Iso8601Recent] time:', time);
 
-    if (!validateIso8601(time)) {
+    /*if (!validateIso8601(time)) {
         console.log('[Iso8601Recent] Falla validateIso8601:', time);
         return false;
-    }
+    }*/
 
     // isoRegex no está definido aquí, así que lo defino localmente
     const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
